@@ -1,0 +1,81 @@
+[Unit]
+Description=shengyu 管理平台（管理面 + 同机节点运行时）
+Documentation=https://example.invalid/shengyu/docs/01-architecture.md
+After=network-online.target shengyu-edgelink-haproxy.service
+Wants=network-online.target
+# 刻意**不**写 Requires/PartOf：转发内核不依赖管理面。
+# 管理面停掉、升级、崩溃，转发都必须继续（hard-stop-after 到期前老 worker 一直服务）。
+
+[Service]
+Type=simple
+# 路径约定（必须与 shengyu-edgelink-haproxy.service 以及 deploy/install.sh 三处一致）：
+#   配置  /etc/shengyu-edgelink/haproxy        ← 本服务写，HAProxy 读
+#   状态  /var/lib/shengyu-edgelink            ← 元数据库与日志分片
+#   套接字 /run/shengyu-edgelink               ← 双方共用（由 tmpfiles.d 创建）
+#
+# 管理面**只绑本机**，由外层 nginx/Caddy 做 HTTPS 反代与访问控制（需求 §九：
+# 「管理 API、统计端口和节点控制接口不公开裸露」）。
+# 生产务必同时打开 -secure-cookie；若反代与后端同机，直接上 -tls-cert/-tls-key 亦可。
+#
+# 管理端口：默认 127.0.0.1:8081，可在安装时用 install.sh --listen 地址:端口 指定。
+# install.sh 会把实际值注入到下面这一行（不是只改模板），因此**升级或重装后
+# 改端口同样生效**。改完之后别忘了同步外层反代的上游端口。
+ExecStart=/usr/local/bin/shengyu-edgelink \
+  -listen 127.0.0.1:8081 \
+  -data /var/lib/shengyu-edgelink \
+  -config-root /etc/shengyu-edgelink/haproxy \
+  -dataplane haproxy \
+  -log-socket /run/shengyu-edgelink/log.sock \
+  -stats-socket-dir /run/shengyu-edgelink \
+  -stats-socket-group shengyu \
+  -haproxy /usr/sbin/haproxy \
+  -secure-cookie=true
+# 刻意**没有** ExecReload：本进程不处理 SIGHUP（只处理 SIGINT/SIGTERM）。
+# 声明一个进程不响应的 ExecReload 比不声明更糟 —— 运维执行 `systemctl reload`
+# 会看到成功，却什么都没发生（评审清单里点名的误导项）。
+# 配置变更不需要重载管理进程：改配置后走「发布」即可。
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=20s
+
+# ---- 权限：Web 服务不以 root 运行（需求 §九） ----
+User=shengyu
+Group=shengyu
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+
+# ---- 可写路径 ----
+# ProtectSystem=strict 会把 /etc 整体置为只读，而发布流程必须往
+# /etc/shengyu-edgelink/haproxy/versions 与 current 写文件。不显式开口子的话，
+# 表现是"本地手工跑通、装成服务后第一次发布就 EROFS 失败"（评审 F02/F03）。
+ReadWritePaths=/etc/shengyu-edgelink/haproxy /var/lib/shengyu-edgelink /run/shengyu-edgelink
+
+# ---- 与转发内核的权限边界 ----
+# 本服务以 shengyu 身份运行，自身**没有**权限操作 root 的 shengyu-edgelink-haproxy。
+# 发布流程需要触发 reload，授权走 **systemd D-Bus + polkit**：
+#   install -m 0644 deploy/polkit-50-shengyu-edgelink.rules /etc/polkit-1/rules.d/50-shengyu-edgelink.rules
+#   systemctl restart polkit
+#
+# ⚠️ 不要改成 sudo：本单元带 NoNewPrivileges=true，而 sudo 依赖 setuid 提权，
+# 两者语义直接冲突 —— sudo 永远不可能成功，失败信息还只有一句
+# "sudo: effective uid is not 0"，与"授权没配好"无法区分。
+# polkit 则完全兼容：进程不提权，由 systemd 自己完成特权动作，polkitd 负责放行判断。
+# 规则文件把授权收窄到「一个用户 + 一个 unit + 一个动词(reload)」，理由见该文件注释。
+#
+# 目录归属（由 install.sh 设置）：
+#   /etc/shengyu-edgelink/haproxy  shengyu:shengyu 0750
+#   /var/lib/shengyu-edgelink      shengyu:shengyu 0750
+#   /run/shengyu-edgelink          root:shengyu   0770
+
+[Install]
+WantedBy=multi-user.target

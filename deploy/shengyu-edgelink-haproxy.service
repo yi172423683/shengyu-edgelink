@@ -1,0 +1,77 @@
+[Unit]
+Description=shengyu 转发内核（HAProxy 社区版，独立实例）
+Documentation=https://example.invalid/shengyu/docs/04-haproxy-baseline.md
+# 只依赖网络就绪，不依赖管理面：
+# 「管理平台离线或重启不影响现有转发」在 systemd 层面的落地就是这一行。
+After=network-online.target
+Wants=network-online.target
+# 注：这里**没有** Conflicts= 自己。
+# 原先写 `Conflicts=shengyu-edgelink-haproxy.service` 是无效声明（一个 unit 与自己冲突不产生任何隔离），
+# 真正需要的隔离是「不与系统自带的 haproxy 抢端口/pid/套接字」，
+# 靠的是独立实例名、独立配置路径与独立运行目录，而不是 Conflicts。
+
+[Service]
+Type=notify
+# 配置路径**只在这里出现一次**，并且与 shengyu-edgelink 的 -config-root 指向同一处。
+# 任何"程序写 A、unit 读 B"的偏差都会让首次启动直接失败（评审 F02）。
+ExecStart=/usr/sbin/haproxy -Ws -f /etc/shengyu-edgelink/haproxy/current/haproxy.cfg -p /run/shengyu-edgelink/haproxy.pid
+# 平滑生效：master-worker 模式下 **SIGUSR2** 就是"重新读取配置并换 worker"，
+# 老 worker 会把手上的连接跑完再退出（由 hard-stop-after 兜底最长时间）。
+# 绝不使用 restart —— 那会立刻断开所有在途连接。
+ExecReload=/bin/kill -USR2 $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+KillMode=mixed
+TimeoutStopSec=30s
+Restart=on-failure
+RestartSec=2s
+LimitNOFILE=1048576
+
+# ---- 权限：**没有任何进程长期以 root 运行** ----
+#
+# 这里用 User/Group 让整个服务（master + 所有 worker）都是 shengyu，
+# 再单独授予"绑定特权端口"这一项能力。两个问题因此同时解决：
+#   ① 443 能绑（CAP_NET_BIND_SERVICE）；
+#   ② 转发进程不是 root（明确要求：worker 必须降权、不得长期以 root 运行）。
+#
+# 为什么不用"master 用 root + 配置里 user shengyu"（Debian 包的传统写法）：
+# 那种写法下 master 进程**长期以 root 存活**（它要持有监听 fd），
+# 对"不能长期以 root 运行"这条要求不合格。
+# 而"服务本身非 root + 配置里再写 user/group"这条路是安全的，有源码依据（不是推测）：
+#   - master-worker 模式下只有 **worker** 进程执行 set_identity()；
+#     源码 src/haproxy.c：`if ((global.mode & (MODE_MWORKER | MODE_DAEMON)) == 0) set_identity()`
+#     —— mworker 时跳过 master 那次调用。
+#   - 非 root 启动时能力处理直接跳过：源码 src/linuxcap.c 的
+#     prepare_caps_for_setuid / finalize_caps_after_setuid 开头都是
+#     `if (from_uid != 0) return 0;`，随后的 setuid(自己)/setgid(自己) 必然成功；
+#     补充组丢不掉只产生一条 warning（set_identity 里是 ha_warning，不是退出）。
+# 结论：两层叠加安全，且互不依赖 —— 单元保证"服务本身非 root"，
+# 配置里的 user/group 保证"即使有人手工以 root 起 haproxy，worker 仍会降权"。
+#
+# 验收判据（验收手册第 7 项）：`ps -o user=,pid=,ppid=,args= -C haproxy`
+# 每一行都必须显示 shengyu，包括 master。
+User=shengyu
+Group=shengyu
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+
+# ---- 可写路径：只开一个，且显式列出 ----
+# HAProxy 只需写两样东西：pid 文件与统计套接字，都在 /run/shengyu-edgelink。
+# 该目录由 tmpfiles.d 创建（见 deploy/tmpfiles-shengyu.conf），属主 root:shengyu 0770。
+# **不在这里用 RuntimeDirectory**：如果两个 unit 都声明 RuntimeDirectory=shengyu，
+# 任何一方重启都会把整个目录删掉再重建，顺手删掉另一方的套接字文件。
+ReadWritePaths=/run/shengyu-edgelink
+
+[Install]
+WantedBy=multi-user.target

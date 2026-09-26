@@ -1,0 +1,11 @@
+dist/
+.stage-*/
+*.db
+*.db-wal
+*.db-shm
+logs/
+.env
+*.pem
+*.key
+*.crt
+

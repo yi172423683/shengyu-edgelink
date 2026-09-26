@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>盛愈边缘网关</title>
+<style>
+  :root { color-scheme:light; --bd:#e5e5e5; --muted:#616161; --bg:#f3f3f3; --surface:#fff; --accent:#1763c6; --err:#b42318; --ok:#107c10; --warn:#8a5700; }
+  * { box-sizing:border-box; }
+  body { margin:0; color:#1a1a1a; background:var(--bg); font:14px/1.5 "Segoe UI Variable","Segoe UI","Microsoft YaHei",sans-serif; }
+  header { min-height:62px; padding:12px max(24px,calc((100vw - 1180px)/2)); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:rgba(255,255,255,.88); border-bottom:1px solid #e5e5e5; }
+  header h1 { margin:0; font-size:18px; font-weight:600; }
+  header .sub { color:var(--muted); font-size:12px; }
+  main { max-width:1180px; margin:0 auto; padding:24px; }
+  #loginCard { max-width:520px; margin:8vh auto 0; padding:28px; }
+  #loginCard h2 { font-size:22px; margin-bottom:8px; }
+  .card { margin-bottom:16px; padding:20px; background:var(--surface); border:1px solid var(--bd); border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.035); }
+  .card h2 { margin:0 0 6px; font-size:16px; font-weight:600; }
+  .card .desc { margin-bottom:14px; color:var(--muted); font-size:12px; white-space:pre-wrap; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  label { display:block; margin-bottom:5px; font-size:12px; font-weight:600; }
+  label .req { color:var(--err); }
+  input,select { width:100%; min-height:36px; padding:7px 10px; color:#1a1a1a; background:#fff; border:1px solid #8a8a8a; border-radius:4px; font:inherit; }
+  input:focus,select:focus { border-color:var(--accent); outline:2px solid rgba(23,99,198,.25); outline-offset:0; }
+  input[readonly] { background:#f5f5f5; color:#616161; }
+  .hint { margin-top:4px; color:var(--muted); font-size:11px; }
+  button { min-height:34px; padding:7px 14px; color:#fff; background:var(--accent); border:1px solid transparent; border-radius:4px; font:inherit; cursor:pointer; }
+  button:hover { background:#0f55ad; }
+  button:focus-visible { outline:2px solid #1a1a1a; outline-offset:2px; }
+  button.sec { background:#5b5b5b; }
+  button.ghost { color:#1a1a1a; background:#f5f5f5; border-color:#d6d6d6; }
+  button.ghost:hover { background:#ebebeb; }
+  button:disabled { color:#777; background:#e5e5e5; cursor:not-allowed; }
+  .row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .msg { display:none; margin-top:12px; padding:10px 12px; border:1px solid; border-radius:4px; font-size:12px; white-space:pre-wrap; }
+  .msg.err { display:block; color:var(--err); background:#fdf3f2; border-color:#f1b8b4; }
+  .msg.ok { display:block; color:#0b6a0b; background:#f1f8f1; border-color:#9fd89f; }
+  .msg.warn { display:block; color:var(--warn); background:#fff8e7; border-color:#e9c46a; }
+  table { width:100%; margin-top:12px; border-collapse:collapse; font-size:12px; }
+  th,td { padding:9px 10px; text-align:left; vertical-align:top; border-bottom:1px solid var(--bd); }
+  th { color:#424242; background:#f7f7f7; font-weight:600; }
+  code,pre { background:#f3f3f3; padding:2px 5px; border-radius:3px; font-size:12px; }
+  pre { margin:8px 0 0; padding:10px 12px; overflow-x:auto; }
+  .banner { margin-bottom:16px; padding:12px 14px; border:1px solid #e9c46a; border-radius:6px; background:#fff8e7; font-size:12px; }
+  .banner.blue { border-color:#a9c7eb; background:#f1f6fc; }
+  .steps { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .steps span { padding:5px 10px; color:#424242; background:#e9e9e9; border-radius:4px; font-size:12px; }
+  .steps span.cur { color:#fff; background:var(--accent); }
+  .steps span.done { color:#0b6a0b; background:#dff2df; }
+  ol.phase { margin:12px 0 0; padding-left:22px; font-size:13px; }
+  ol.phase li { padding:3px 0; }
+  ol.phase li.done { color:var(--ok); }
+  ol.phase li.fail { color:var(--err); font-weight:600; }
+  ol.phase li.pending { color:var(--muted); }
+  .kv { font-size:13px; }
+  .kv div { padding:5px 0; border-bottom:1px solid #ededed; }
+  .kv b { display:inline-block; min-width:120px; color:#424242; font-weight:600; }
+  .tag { display:inline-block; padding:2px 7px; color:#424242; background:#ededed; border-radius:3px; font-size:11px; }
+  .tag.no { color:var(--err); background:#fce8e6; }
+  .tag.yes { color:var(--ok); background:#e7f4e7; }
+  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>盛愈边缘网关</h1>
+    <div class="sub">自定义端口 · 自定义域名 · TLS SNI 透传</div>
+  </div>
+  <div class="sub" id="hdrRight"></div>
+</header>
+<main>
+
+  <!-- ========== 登录 ========== -->
+  <div class="card" id="loginCard">
+    <h2>登录</h2>
+    <div class="desc">使用服务器上已有的管理员账号登录。忘记口令时，请在服务器运行 edgelink 菜单中的“重置管理员密码”；重复安装不会覆盖已有口令。</div>
+    <div class="grid">
+      <div><label>用户名</label><input id="u" value="admin" autocomplete="username"></div>
+      <div><label>口令</label><input id="p" type="password" autocomplete="current-password"></div>
+    </div>
+    <div class="row"><button id="btnLogin">登录</button></div>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div id="app" style="display:none">
+
+    <!-- ========== SSL 说明（常驻） ========== -->
+    <div class="banner blue" id="sslBanner">
+      <strong>TLS 透传</strong>：证书由源站自己持有和续期，平台不会申请证书。<span id="sslTerminateNote"></span>
+    </div>
+
+    <!-- ========== 首次初始化向导 ========== -->
+    <div id="wizard" style="display:none">
+      <div class="steps" id="stepBar"></div>
+
+      <!-- 步骤 1：欢迎 -->
+      <div class="card" id="w1">
+        <h2>步骤 1 / 5 · 欢迎</h2>
+        <div class="desc">这台机器还没有任何已发布业务，先花一分钟把它配起来。443 只是默认推荐值，不是唯一入口——你可以用任意端口。</div>
+        <div class="kv" id="welcomeKV"></div>
+        <div class="row"><button id="btnW1">开始配置</button></div>
+      </div>
+
+      <!-- 步骤 2：数据面入口 -->
+      <div class="card" id="w2" style="display:none">
+        <h2>步骤 2 / 5 · 创建数据面入口</h2>
+        <div class="desc">
+          入口就是客户端连进来的地址:端口。多个域名可以共用同一个入口，按 TLS SNI 分流。
+          <b>端口可填任意 1–65535</b>；<b>443 只是默认推荐值</b>，被占用就换 8443 / 9443。
+          创建前会同时检查 IPv4 与 IPv6 的端口占用。
+        </div>
+        <div class="grid">
+          <div>
+            <label>监听地址 <span class="req">*</span></label>
+            <input id="bindAddr" value="0.0.0.0">
+            <div class="hint">监听地址填 IPv4 字面量；留空或 * 视为 0.0.0.0（所有网卡）。</div>
+          </div>
+          <div>
+            <label>监听端口 <span class="req">*</span></label>
+            <input id="bindPort" value="8443" type="number" min="1" max="65535">
+            <div class="hint">例如 8443、9443。443 只是默认推荐值，不是唯一入口。</div>
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnPortCheck" class="sec">检查端口是否被占用</button>
+          <button id="btnSNI" disabled>创建入口</button>
+        </div>
+        <div class="msg" id="sniMsg"></div>
+        <div id="sniTable"></div>
+        <div class="row"><button id="btnW2" class="ghost">下一步：添加业务</button></div>
+      </div>
+
+      <!-- 步骤 3：业务 -->
+      <div class="card" id="w3" style="display:none">
+        <h2>步骤 3 / 5 · 添加业务（域名 + 源站）</h2>
+        <div class="desc">
+          同一入口下可填多个域名（逗号分隔），按 SNI <b>精确匹配</b>转发到对应源站。
+          <b>不支持通配符域名</b>（如 *.example.com），请为每个子域单独填写。
+        </div>
+        <div class="grid">
+          <div>
+            <label>业务名称 <span class="req">*</span></label>
+            <input id="bizName" placeholder="例如：客户A-官网">
+          </div>
+          <div>
+            <label>域名 <span class="req">*</span></label>
+            <input id="domains" placeholder="a.example.com,b.example.com">
+            <div class="hint">小写、精确匹配，多个用逗号分隔；禁止通配符。</div>
+          </div>
+          <div>
+            <label>源站地址 <span class="req">*</span></label>
+            <input id="originHost" placeholder="10.0.0.5 / 2001:db8::1 / origin.example.com">
+            <div class="hint">源站地址可填 IPv4、IPv6 或域名。填域名时 HAProxy 只在启动时解析一次，DNS 变更后需要重新发布。</div>
+          </div>
+          <div>
+            <label>源站端口 <span class="req">*</span></label>
+            <input id="originPort" type="number" value="443" min="1" max="65535">
+          </div>
+          <div>
+            <label>健康检查方式 <span class="req">*</span></label>
+            <select id="hcKind">
+              <option value="tcp">tcp — TCP 连接探测</option>
+              <option value="tls">tls — TLS 握手探测</option>
+              <option value="http">http — HTTP 探测（明文）</option>
+              <option value="https">https — HTTP 探测（走 TLS）</option>
+            </select>
+            <div class="hint">健康检查方式只影响探测，不影响业务传输（透传不终止 TLS）。</div>
+          </div>
+          <div>
+            <label>使用的数据面入口</label>
+            <select id="sniSelect"></select>
+            <div class="hint">选择上一步创建的入口（多个域名共用该端口）。</div>
+          </div>
+          <div>
+            <label>TLS 模式</label>
+            <select id="tlsMode">
+              <option value="sni_tls" selected>TLS 透传（证书在源站）— 可用</option>
+              <option value="tls_terminate" disabled>TLS 终止（平台代申请证书）— 尚未实现</option>
+            </select>
+            <div class="hint" id="tlsModeHint"></div>
+          </div>
+        </div>
+        <div class="row"><button id="btnBiz">添加业务</button></div>
+        <div class="msg" id="bizMsg"></div>
+        <div id="bizTable"></div>
+        <div class="row"><button id="btnW3" class="ghost">下一步：检查配置</button></div>
+      </div>
+
+      <!-- 步骤 4：检查 -->
+      <div class="card" id="w4" style="display:none">
+        <h2>步骤 4 / 5 · 检查</h2>
+        <div class="desc">发布前请确认下面这些内容。DNS 未生效前发布也能成功，但客户端连不上。</div>
+        <div id="reviewBox"></div>
+        <div class="row"><button id="btnW4">下一步：发布</button></div>
+      </div>
+
+      <!-- 步骤 5：发布 -->
+      <div class="card" id="w5" style="display:none">
+        <h2>步骤 5 / 5 · 发布</h2>
+        <div class="desc">
+          发布是原子操作：任何一步失败都会自动回滚，现有转发不受影响。
+          下面是各阶段的实际执行情况。
+        </div>
+        <ol class="phase" id="phaseList"></ol>
+        <div class="row">
+          <button id="btnPublish">保存并发布</button>
+          <button id="btnBack4" class="ghost">上一步</button>
+        </div>
+        <div class="msg" id="pubMsg"></div>
+        <div id="failBox"></div>
+      </div>
+    </div>
+
+    <!-- ========== 正常总览 ========== -->
+    <div id="dash" style="display:none">
+
+      <div class="card">
+        <h2>管理端口</h2>
+        <div class="desc">当前管理台监听地址（由安装参数决定，此处只读展示）。</div>
+        <div class="grid">
+          <div>
+            <label>管理端口</label>
+            <input id="mgmtPort" readonly>
+            <div class="hint">需变更请重跑 install.sh --listen 地址:端口。</div>
+          </div>
+          <div>
+            <label>健康检查接口</label>
+            <input id="healthUrl" readonly>
+            <div class="hint">存活判断请用 /api/health（返回 {"ok":true}）。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>数据面入口</h2>
+        <div class="desc">继续新增入口：填写监听地址与监听端口，创建前会检查端口占用。443 只是默认推荐值，不是唯一入口。</div>
+        <div class="grid">
+          <div><label>监听地址</label><input id="dBindAddr" value="0.0.0.0"></div>
+          <div><label>监听端口</label><input id="dBindPort" value="9443" type="number" min="1" max="65535"></div>
+        </div>
+        <div class="row"><button id="btnDSNI">新增入口</button></div>
+        <div class="msg" id="dSniMsg"></div>
+        <div id="dSniTable"></div>
+      </div>
+
+      <div class="card">
+        <h2>业务（域名 / 源站 / 健康检查）</h2>
+        <div class="desc">继续添加：域名、源站地址（IPv4/IPv6/域名）、源站端口、健康检查方式。</div>
+        <div class="grid">
+          <div><label>业务名称</label><input id="dBizName" placeholder="例如：客户B-接口"></div>
+          <div><label>域名</label><input id="dDomains" placeholder="b.example.com"></div>
+          <div><label>源站地址</label><input id="dOriginHost" placeholder="10.0.0.6"></div>
+          <div><label>源站端口</label><input id="dOriginPort" type="number" value="443" min="1" max="65535"></div>
+          <div>
+            <label>健康检查方式</label>
+            <select id="dHcKind">
+              <option value="tcp">tcp — TCP 连接探测</option>
+              <option value="tls">tls — TLS 握手探测</option>
+              <option value="http">http — HTTP 探测（明文）</option>
+              <option value="https">https — HTTP 探测（走 TLS）</option>
+            </select>
+          </div>
+          <div><label>使用的数据面入口</label><select id="dSniSelect"></select></div>
+        </div>
+        <div class="row"><button id="btnDBiz">添加业务</button><button id="btnCancelBizEdit" class="ghost" style="display:none">取消编辑</button></div>
+        <div class="msg" id="dBizMsg"></div>
+        <div id="dBizTable"></div>
+      </div>
+
+      <div class="card">
+        <h2>发布</h2>
+        <div class="desc">配置改动需发布后才生效。任一阶段失败都会自动回滚。</div>
+        <ol class="phase" id="dPhaseList"></ol>
+        <div class="row">
+          <button id="btnPreview" class="sec">预检</button>
+          <button id="btnDPublish">发布</button>
+          <button id="btnRollback" class="ghost">回滚到上一版</button>
+        </div>
+        <div class="msg" id="dPubMsg"></div>
+        <div id="dFailBox"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let csrf = "", nodeId = "", customerId = "";
+let meta = null, wizardStep = 1, sniList = [], bizList = [], editingBizId = "";
+
+// 发布阶段：顺序与服务端真实执行顺序一致。
+// 界面只是把服务端返回的 phase 映射成"走到哪一步"，不臆造状态。
+const PHASES = [
+  ["precheck", "平台校验（域名 / 端口 / 源站语义）"],
+  ["portcheck", "发布前端口占用检查"],
+  ["render",   "生成候选配置"],
+  ["write",    "写入候选配置到版本目录"],
+  ["validate", "语法检查（haproxy -c）"],
+  ["reload",   "HAProxy reload（平滑接管）"],
+  ["verify",   "等待就绪 + 运行版本校验"],
+  ["probe",    "源站健康检查"],
+];
+
+function show(id, text, kind) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = "msg " + (kind || "err");
+}
+
+async function api(method, path, body) {
+  const headers = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (csrf) headers["X-CSRF-Token"] = csrf;
+  const res = await fetch(path, {
+    method, headers, body: body !== undefined ? JSON.stringify(body) : undefined,
+    credentials: "same-origin"
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  return { status: res.status, data };
+}
+
+function errText(res, fallback) {
+  if (res && res.data) {
+    const d = res.data;
+    let s = d.error || d.message || fallback || "请求失败";
+    if (d.detail) s += "\n" + d.detail;
+    if (d.issues && d.issues.length) {
+      s += "\n校验问题：";
+      for (const i of d.issues) s += "\n - [" + i.code + "] " + i.message + (i.hint ? "（" + i.hint + "）" : "");
+    }
+    return s;
+  }
+  return fallback || "请求失败（HTTP " + (res ? res.status : "?") + "）";
+}
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+// ---------------- 登录 ----------------
+$("btnLogin").onclick = async () => {
+  const button = $("btnLogin");
+  button.disabled = true;
+  try {
+    const res = await api("POST", "/api/login", { username: $("u").value, password: $("p").value });
+    if (res.status !== 200 || !res.data || !res.data.csrf_token) {
+      show("loginMsg", errText(res, "登录失败"), "err");
+      return;
+    }
+    csrf = res.data.csrf_token;
+    $("loginCard").style.display = "none";
+    $("app").style.display = "";
+    if (!(await boot())) {
+      csrf = "";
+      $("app").style.display = "none";
+      $("loginCard").style.display = "";
+    }
+  } catch (err) {
+    csrf = "";
+    $("app").style.display = "none";
+    $("loginCard").style.display = "";
+    show("loginMsg", "无法连接管理服务，请检查网络或服务器状态后重试。", "err");
+  } finally {
+    button.disabled = false;
+  }
+};
+
+$("p").addEventListener("keydown", event => {
+  if (event.key === "Enter") $("btnLogin").click();
+});
+
+async function boot() {
+  const m = await api("GET", "/api/meta");
+  if (m.status !== 200 || !m.data) { show("loginMsg", "登录凭据已接受，但无法建立管理会话：\n" + errText(m, "读取系统信息失败"), "err"); return false; }
+  meta = m.data;
+
+  $("hdrRight").textContent =
+    (meta.product || "盛愈边缘网关") + " · 版本 " + (meta.version || "-") +
+    " · 管理端口 " + (meta.listen_addr || "-");
+
+  // TLS 能力：按后端声明渲染，未实现就明确标"未实现"
+  const t = meta.tls || {};
+  const term = t.terminate || {};
+  $("sslTerminateNote").innerHTML = term.supported
+    ? ""
+    : "<br><b>TLS 终止（" + esc(term.label || "平台代申请证书") + "）：<span class='tag no'>尚未实现</span></b> " +
+      esc(term.note || "当前不会申请也不会续期任何证书。");
+  if ($("tlsModeHint")) {
+    $("tlsModeHint").innerHTML = term.supported ? "" : "TLS 终止尚未实现，不可选择。" + esc(term.note || "");
+  }
+
+  // 节点：单节点部署直接取第一个
+  const nodes = await api("GET", "/api/nodes");
+  if (nodes.status === 200 && nodes.data && nodes.data.items && nodes.data.items.length) {
+    nodeId = nodes.data.items[0].id;
+  }
+  const cus = await api("GET", "/api/customers");
+  if (cus.status === 200 && cus.data && cus.data.items && cus.data.items.length) {
+    customerId = cus.data.items[0].id;
+  } else {
+    const nc = await api("POST", "/api/customers", { name: "默认客户", enabled: true });
+    if (nc.status === 201 && nc.data) customerId = nc.data.id;
+  }
+
+  if (meta.initialized) {
+    $("wizard").style.display = "none";
+    $("dash").style.display = "";
+    const port = location.port || (location.protocol === "https:" ? "443" : "80");
+    $("mgmtPort").value = meta.listen_addr || (location.hostname + ":" + port);
+    $("healthUrl").value = "http://" + (meta.listen_addr || (location.hostname + ":" + port)) + "/api/health";
+    await refreshDash();
+  } else {
+    $("dash").style.display = "none";
+    $("wizard").style.display = "";
+    await fillWelcome();
+    await loadSNI();
+    await loadBiz();
+    gotoStep(1);
+  }
+  return true;
+}
+
+function gotoStep(n) {
+  wizardStep = n;
+  const names = ["欢迎", "数据面入口", "业务", "检查", "发布"];
+  let bar = "";
+  for (let i = 1; i <= 5; i++) {
+    bar += "<span class='" + (i === n ? "cur" : (i < n ? "done" : "")) + "'>" + i + ". " + names[i - 1] + "</span>";
+  }
+  $("stepBar").innerHTML = bar;
+  for (let i = 1; i <= 5; i++) $("w" + i).style.display = (i === n ? "" : "none");
+  if (n === 4) renderReview();
+  if (n === 5) renderPhases("phaseList", null, null);
+}
+
+$("btnW1").onclick = () => gotoStep(2);
+$("btnW2").onclick = () => gotoStep(3);
+$("btnW3").onclick = () => gotoStep(4);
+$("btnW4").onclick = () => gotoStep(5);
+$("btnBack4").onclick = () => gotoStep(4);
+
+// ---------------- 步骤 1：欢迎 ----------------
+async function fillWelcome() {
+  const n = meta.node || {};
+  const kv = [
+    ["产品名称", meta.product || "盛愈边缘网关"],
+    ["当前版本", meta.version || "-"],
+    ["管理端口", (meta.listen_addr || "-") + "（只读，安装时用 install.sh --listen 设定）"],
+    ["健康检查", "GET /api/health → {\"ok\":true}"],
+    ["节点名称", n.name || "-"],
+    ["节点 ID", n.id || "-"],
+    ["公网 IPv4", n.public_ipv4 || "-"],
+    ["公网 IPv6", n.public_ipv6 || "-"],
+    ["HAProxy 版本", n.haproxy_version || "-"],
+    ["当前生效版本", n.applied_version === 0 ? "v0（基线，不监听任何端口）" : ("v" + n.applied_version)],
+  ];
+  let h = "";
+  for (const [k, v] of kv) h += "<div><b>" + esc(k) + "</b>" + esc(v) + "</div>";
+  $("welcomeKV").innerHTML = h;
+}
+
+// ---------------- 步骤 2：数据面入口 ----------------
+function portBad(port) { return !(port >= 1 && port <= 65535); }
+
+$("btnPortCheck").onclick = async () => {
+  if (!nodeId) { show("sniMsg", "未找到节点", "err"); return; }
+  const port = parseInt($("bindPort").value, 10);
+  if (portBad(port)) { show("sniMsg", "监听端口必须是 1–65535", "err"); return; }
+  const addr = $("bindAddr").value.trim() || "0.0.0.0";
+  const res = await api("POST", "/api/nodes/" + nodeId + "/port-check", { bind_addr: addr, bind_port: port });
+  if (res.status !== 200 || !res.data) {
+    show("sniMsg", errText(res, "端口检查失败"), "err");
+    $("btnSNI").disabled = true;
+    return;
+  }
+  if (res.data.in_use) {
+    const c = res.data.conflict || {};
+    let s = "端口不可用：" + addr + ":" + port + "\n";
+    for (const o of (c.owners || [])) {
+      s += " · " + (o.comm ? o.comm + " (pid " + o.pid + ")" : (o.pid ? "pid " + o.pid : "未知进程")) + " 监听 " + o.addr + "\n";
+    }
+    if (!c.process_resolved) {
+      s += "（进程名未解析出来：本服务以非 root 运行，读不到其它用户进程的文件描述符）\n";
+      s += "请在服务器上执行：" + (c.inspect_cmd || ("ss -ltnp | grep ':" + port + "'"));
+    }
+    show("sniMsg", s, "err");
+    $("btnSNI").disabled = true;
+  } else {
+    show("sniMsg", "端口可用：" + addr + ":" + port + "（IPv4 与 IPv6 均未发现占用）。可以创建入口。", "ok");
+    $("btnSNI").disabled = false;
+  }
+};
+
+$("bindPort").oninput = () => { $("btnSNI").disabled = true; };
+$("bindAddr").oninput = () => { $("btnSNI").disabled = true; };
+
+$("btnSNI").onclick = async () => { await createSNI("bindAddr", "bindPort", "sniMsg", true); };
+$("btnDSNI").onclick = async () => { await createSNI("dBindAddr", "dBindPort", "dSniMsg", false); };
+
+async function createSNI(addrId, portId, msgId, isWizard) {
+  if (!nodeId) { show(msgId, "未找到节点", "err"); return; }
+  const port = parseInt($(portId).value, 10);
+  if (portBad(port)) { show(msgId, "监听端口必须是 1–65535", "err"); return; }
+  const res = await api("POST", "/api/nodes/" + nodeId + "/sni-entries", {
+    bind_addr: $(addrId).value.trim() || "0.0.0.0", bind_port: port, enabled: true
+  });
+  if (res.status === 409) {
+    show(msgId, errText(res, "端口已被占用，请换一个端口（例如 8443 / 9443）"), "err");
+    return;
+  }
+  if (res.status !== 201) { show(msgId, errText(res, "创建入口失败"), "err"); return; }
+  show(msgId, "已创建入口 " + res.data.bind_addr + ":" + res.data.bind_port + "（还需发布后生效）", "ok");
+  await loadSNI();
+  if (isWizard) $("btnSNI").disabled = true;
+}
+
+// ---------------- 步骤 3：业务 ----------------
+function collectBiz(nameId, domId, hostId, portId, hcId, sniId) {
+  const raw = $(domId).value;
+  const domains = raw.split(/[,，\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  const bad = domains.filter(d => d.indexOf("*") >= 0);
+  if (bad.length) return { err: "不支持通配符域名：" + bad.join(", ") + "\n请为每个子域单独填写（例如 a.example.com、b.example.com）。" };
+  if (!domains.length) return { err: "请至少填写一个域名" };
+  if (!$(nameId).value.trim()) return { err: "请填写业务名称" };
+  if (!$(hostId).value.trim()) return { err: "请填写源站地址（IPv4 / IPv6 / 域名）" };
+  const op = parseInt($(portId).value, 10);
+  if (portBad(op)) return { err: "源站端口必须是 1–65535" };
+  if (!$(sniId).value) return { err: "请先创建一个数据面入口" };
+  return {
+    body: {
+      customer_id: customerId, name: $(nameId).value.trim(), mode: "sni_tls", enabled: true,
+      domains: domains, primary_node_id: nodeId,
+      origin_host: $(hostId).value.trim(), origin_port: op, sni_entry_id: $(sniId).value,
+      healthcheck: {
+        enabled: true, kind: $(hcId).value, interval_ms: 5000, timeout_ms: 3000,
+        rise: 2, fall: 3, skip_cert_verify: true
+      }
+    }
+  };
+}
+
+$("btnBiz").onclick = async () => {
+  const c = collectBiz("bizName", "domains", "originHost", "originPort", "hcKind", "sniSelect");
+  if (c.err) { show("bizMsg", c.err, "err"); return; }
+  const res = await api("POST", "/api/businesses", c.body);
+  if (res.status !== 201) { show("bizMsg", errText(res, "添加业务失败"), "err"); return; }
+  show("bizMsg", "已添加业务《" + c.body.name + "》，域名：" + c.body.domains.join(", ") + "（还需发布生效）", "ok");
+  await loadBiz();
+};
+
+$("btnDBiz").onclick = async () => {
+  const c = collectBiz("dBizName", "dDomains", "dOriginHost", "dOriginPort", "dHcKind", "dSniSelect");
+  if (c.err) { show("dBizMsg", c.err, "err"); return; }
+  const editing = editingBizId;
+  const res = await api(editing ? "PUT" : "POST", editing ? "/api/businesses/" + editing : "/api/businesses", c.body);
+  if (res.status !== (editing ? 200 : 201)) { show("dBizMsg", errText(res, editing ? "保存业务失败" : "添加业务失败"), "err"); return; }
+  show("dBizMsg", (editing ? "已保存业务《" : "已添加业务《") + c.body.name + "》（还需发布生效）", "ok");
+  editingBizId = "";
+  $("btnDBiz").textContent = "添加业务";
+  $("btnCancelBizEdit").style.display = "none";
+  await loadBiz();
+};
+
+$("btnCancelBizEdit").onclick = () => {
+  editingBizId = "";
+  $("btnDBiz").textContent = "添加业务";
+  $("btnCancelBizEdit").style.display = "none";
+  show("dBizMsg", "已取消编辑", "ok");
+};
+
+// ---------------- 列表 ----------------
+async function loadSNI() {
+  if (!nodeId) return;
+  const res = await api("GET", "/api/nodes/" + nodeId + "/sni-entries");
+  sniList = (res.data && res.data.items) || [];
+  let h = "<table><tr><th>入口 ID</th><th>监听地址</th><th>监听端口</th><th>状态</th><th>操作</th></tr>";
+  let opts = "";
+  for (const e of sniList) {
+    h += "<tr><td>" + esc(e.id) + "</td><td>" + esc(e.bind_addr) + "</td><td>" + esc(e.bind_port) +
+         "</td><td>" + (e.enabled ? "启用" : "停用") + "</td>" +
+         "<td><button data-sni=\"" + esc(e.id) + "\" data-port=\"" + esc(e.bind_port) +
+         "\" style=\'font-size:12px;padding:2px 8px\'>删除</button></td></tr>";
+    opts += '<option value="' + esc(e.id) + '">' + esc(e.bind_addr) + ":" + esc(e.bind_port) + "</option>";
+  }
+  h += "</table>";
+  const empty = "<div class='hint'>还没有数据面入口。</div>";
+  const noOpt = "<option value=''>（请先创建入口）</option>";
+  $("sniTable").innerHTML = sniList.length ? h : empty;
+  $("dSniTable").innerHTML = sniList.length ? h : empty;
+  $("sniSelect").innerHTML = opts || noOpt;
+  $("dSniSelect").innerHTML = opts || noOpt;
+  // 删除按钮用事件委托绑定（表格每次重建，逐个绑定更容易漏）。
+  // 参数走 data-* 而不是内联 onclick：内联写法要把 id 拼进 HTML，
+  // 一旦某个 id 含引号就会撕开属性 —— 当前 id 恰好不含，但这条规则不该依赖"恰好"。
+  [["sniTable", "sniMsg"], ["dSniTable", "dSniMsg"]].forEach(function (pair) {
+    const tbl = $(pair[0]);
+    if (!tbl) return;
+    tbl.querySelectorAll("button[data-sni]").forEach(function (b) {
+      b.onclick = function () { delSNI(b.getAttribute("data-sni"), b.getAttribute("data-port"), pair[1]); };
+    });
+  });
+}
+
+// delSNI 删除一个数据面入口。
+//
+// 两件事必须在界面上说清楚（服务端返回里带着同样的信息，界面不许另说一套）：
+//   ① 还有业务挂在这个入口上时**不允许删** —— 删了会留下悬空引用，
+//      而悬空引用在渲染时会**静默丢掉**那条路由，表现是"发布成功但业务不转发"；
+//   ② 删成功只改了「期望状态」，必须**再发布一次**才会在节点上生效。
+async function delSNI(id, port, msgId) {
+  if (!nodeId || !id) return;
+  const box = msgId || "sniMsg";
+  if (!confirm("确认删除入口 " + port + "？\n\n" +
+      "如果还有业务在用这个入口，删除会被拒绝 —— 请先把那些业务删掉，或把它们改挂到别的入口。\n" +
+      "删除后需要执行一次「发布」，才会在节点上生效。")) return;
+  const res = await api("DELETE", "/api/nodes/" + nodeId + "/sni-entries/" + id);
+  if (res.status === 409) {
+    // 409 不是"请求写错了"，而是"当前状态不允许"：提示里必须说清下一步该动什么。
+    show(box, errText(res, "该入口仍被业务引用，无法删除"), "err");
+    await loadSNI();
+    return;
+  }
+  if (res.status !== 200) {
+    show(box, errText(res, "删除入口失败"), "err");
+    return;
+  }
+  show(box, (res.data && res.data.next_step) || "入口已删除（还需发布才会生效）", "ok");
+  await loadSNI();
+}
+
+async function loadBiz() {
+  const res = await api("GET", "/api/businesses");
+  bizList = (res.data && res.data.items) || [];
+  let h = "<table><tr><th>业务</th><th>模式</th><th>域名</th><th>源站地址</th><th>源站端口</th><th>健康检查方式</th><th>操作</th></tr>";
+  for (const b of bizList) {
+    h += "<tr><td>" + esc(b.name || b.id) + "</td><td>" + esc(b.mode) + "</td><td>" +
+         esc((b.domains || []).join(", ")) + "</td><td>" + esc(b.origin_host || "-") + "</td><td>" +
+         esc(b.origin_port || "-") + "</td><td>" + esc((b.healthcheck && b.healthcheck.kind) || "-") +
+         "</td><td><button data-biz-edit=\"" + esc(b.id) + "\">编辑</button> " +
+         "<button data-biz-delete=\"" + esc(b.id) + "\">删除</button></td></tr>";
+  }
+  h += "</table>";
+  const empty = "<div class='hint'>还没有业务。</div>";
+  $("bizTable").innerHTML = bizList.length ? h : empty;
+  $("dBizTable").innerHTML = bizList.length ? h : empty;
+  ["bizTable", "dBizTable"].forEach(function (id) {
+    const table = $(id);
+    if (!table) return;
+    table.querySelectorAll("button[data-biz-edit]").forEach(function (btn) {
+      btn.onclick = function () { editBiz(btn.getAttribute("data-biz-edit")); };
+    });
+    table.querySelectorAll("button[data-biz-delete]").forEach(function (btn) {
+      btn.onclick = function () { deleteBiz(btn.getAttribute("data-biz-delete")); };
+    });
+  });
+}
+
+async function editBiz(id) {
+  const listed = bizList.find(x => x.id === id);
+  if (!listed) return;
+  const detail = await api("GET", "/api/businesses/" + id);
+  const b = (detail.data && detail.data.business) || listed;
+  const routes = (detail.data && detail.data.routes) || [];
+  editingBizId = id;
+  $("dBizName").value = b.name || "";
+  $("dDomains").value = (b.domains || []).join(", ");
+  $("dOriginHost").value = b.origin_host || "";
+  $("dOriginPort").value = b.origin_port || "";
+  $("dHcKind").value = (b.healthcheck && b.healthcheck.kind) || "tcp";
+  const route = routes.find(r => r.node_id === nodeId) || routes[0];
+  if (route && route.sni_entry_id) $("dSniSelect").value = route.sni_entry_id;
+  $("btnDBiz").textContent = "保存业务修改";
+  $("btnCancelBizEdit").style.display = "";
+  $("dBizName").scrollIntoView({ behavior: "smooth", block: "center" });
+  show("dBizMsg", "正在编辑《" + (b.name || id) + "》，修改后需要重新发布", "ok");
+}
+
+async function deleteBiz(id) {
+  const b = bizList.find(x => x.id === id);
+  if (!b || !confirm("确认删除业务《" + (b.name || id) + "》？删除后需要重新发布才会生效。")) return;
+  const res = await api("DELETE", "/api/businesses/" + id);
+  if (res.status !== 200) { show("dBizMsg", errText(res, "删除业务失败"), "err"); return; }
+  show("dBizMsg", (res.data && res.data.next_step) || "业务已删除（还需发布）", "ok");
+  if (editingBizId === id) $("btnCancelBizEdit").click();
+  await loadBiz();
+}
+
+async function refreshDash() { await loadSNI(); await loadBiz(); renderPhases("dPhaseList", null, null); }
+
+// ---------------- 步骤 4：检查 ----------------
+function renderReview() {
+  const n = meta.node || {};
+  const dns = n.public_ipv4 || n.public_ipv6 || "-";
+  const sniId = $("sniSelect").value;
+  const e = sniList.find(x => x.id === sniId);
+  const port = e ? e.bind_port : null;
+  const addr = e ? e.bind_addr : "-";
+  const doms = ($("domains").value.split(/[,，\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean));
+  const host = $("originHost").value.trim();
+  const oport = $("originPort").value;
+
+  let h = "<div class='kv'>";
+  h += "<div><b>数据面入口</b>" + esc(addr) + ":" + esc(port == null ? "-" : port) + "</div>";
+  h += "<div><b>业务名称</b>" + esc($("bizName").value.trim() || "-") + "</div>";
+  h += "<div><b>域名</b>" + esc(doms.join(", ") || "-") + "</div>";
+  h += "<div><b>源站地址</b>" + esc(host || "-") + "</div>";
+  h += "<div><b>源站端口</b>" + esc(oport || "-") + "</div>";
+  h += "<div><b>健康检查方式</b>" + esc($("hcKind").value) + "</div>";
+  h += "<div><b>TLS 模式</b>TLS 透传（证书在源站，平台不申请证书）</div>";
+  h += "</div>";
+
+  h += "<h2 style='font-size:14px;margin:14px 0 4px'>DNS 应指向的 IP</h2>";
+  h += "<pre>A 记录：  " + esc(doms.join("\nA 记录：  ") || "-") + "  →  " + esc(dns) + "</pre>";
+
+  h += "<h2 style='font-size:14px;margin:14px 0 4px'>实际访问地址</h2>";
+  if (port == null) {
+    h += "<div class='hint'>请先创建数据面入口。</div>";
+  } else if (port === 443) {
+    h += "<pre>" + esc(doms.join("\n") || "-") + "   （443 是 TLS 默认端口，访问时可省略端口）</pre>";
+  } else {
+    h += "<div class='banner' style='margin:6px 0'>入口端口是 <b>" + esc(port) +
+         "</b>，不是 443 —— 客户端必须显式带上端口，否则会连到 443 上（那里可能是别的程序）。</div>";
+    h += "<pre>" + esc(doms.map(d => "https://" + d + ":" + port).join("\n")) + "</pre>";
+  }
+  $("reviewBox").innerHTML = h;
+}
+
+// ---------------- 步骤 5：发布 ----------------
+function renderPhases(listId, failPhase, ok) {
+  let h = "";
+  let reached = PHASES.length - 1;
+  if (failPhase) {
+    reached = PHASES.findIndex(p => p[0] === failPhase);
+    if (reached < 0) reached = PHASES.length - 1;
+  }
+  for (let i = 0; i < PHASES.length; i++) {
+    let cls = "pending", mark = "○";
+    if (ok === true) { cls = "done"; mark = "✓"; }
+    else if (failPhase) {
+      if (i < reached) { cls = "done"; mark = "✓"; }
+      else if (i === reached) { cls = "fail"; mark = "✗"; }
+    }
+    h += "<li class='" + cls + "'>" + mark + " " + esc(PHASES[i][1]) + "</li>";
+  }
+  $(listId).innerHTML = h;
+}
+
+// warningsBlock 渲染"不影响结论、但必须知道"的提醒。
+//
+// 抽成公共函数而不是各写一段：同一件事在界面不同位置措辞不同，
+// 是排查时最容易被误读的地方（这个项目在"回滚措辞"上已经吃过一次亏）。
+// 目前唯一的 warning 来源是版本目录里"未纳入清单的额外文件"。
+function warningsBlock(ws) {
+  if (!ws || !ws.length) return "";
+  let h = "<h2 style='font-size:14px;margin:12px 0 4px;color:#92400e'>提醒：存在未纳入清单的额外文件</h2>";
+  h += "<ul style='margin:0 0 0 18px;color:#78350f'>" +
+       ws.map(function (w) { return "<li>" + esc(w) + "</li>"; }).join("") + "</ul>";
+  h += "<div style='color:#78350f;margin-top:4px'>这些文件不会被发布到 current/，也不影响转发；" +
+       "但说明对应的版本目录在清单生成后被改动过，建议核对后清理。</div>";
+  return h;
+}
+
+function renderFailure(boxId, listId, r, phase, note) {
+  renderPhases(listId, phase, false);
+  const cur = (meta && meta.node) ? meta.node.applied_version : null;
+  let h = "<div class='card' style='border-color:#fecaca;background:#fef2f2'>";
+  h += "<h2 style='color:#b91c1c'>发布失败</h2>";
+  h += "<div class='kv'>";
+  h += "<div><b>失败阶段</b>" + esc(phaseLabel(phase)) + "</div>";
+  h += "<div><b>具体原因</b>" + esc(note || "-") + "</div>";
+  h += "<div><b>当前运行版本</b>" + (cur == null ? "-" : (cur === 0 ? "v0（基线，不监听任何端口）" : "v" + cur)) + "</div>";
+
+  const rb = r ? r.rolled_back : false;
+  const nn = r ? r.no_rollback_needed : false;
+  const oc = (r && r.rollback_outcome) ? r.rollback_outcome : "";
+  const rv = r ? r.rollback_verified : false;
+  const vran = r ? r.rollback_verify_ran : false;
+  const restored = r ? r.rollback_restored : false;
+  const code = (r && r.rollback_code) ? r.rollback_code : "";
+  const safe = rb || nn;
+
+  // 措辞只认服务端给出的结论（rollback_outcome），界面不自己推断。五种状态必须分开说：
+  //   verified             = 文件集合 + 版本标记 + 统计套接字 + 监听归属 四项判据都成立；
+  //   not_needed           = 改动压根没生效，且已确认原版本仍在正常运行；
+  //   restored_not_verified= 文件已恢复，但验证没有执行 —— 不等于回滚成功；
+  //   verify_failed        = 验证执行了且未通过；
+  //   failed               = 连文件都没恢复成功；
+  //   not_applied          = 还没下发到数据面就失败了（配置一行未改）。
+  // 后面几种一律不能显示"已回滚并验证通过"，并且都要给出人工处理命令。
+  let tag, tagCls = "no";
+  if (oc === "verified") { tag = "已自动回滚并验证通过"; tagCls = "yes"; }
+  else if (oc === "not_needed") { tag = "改动未生效，原版本仍在正常运行（无需回滚）"; tagCls = "yes"; }
+  else if (oc === "not_applied") { tag = "改动尚未下发到数据面（无需回滚）"; tagCls = "yes"; }
+  else if (oc === "restored_not_verified") { tag = "已恢复但未验证（需人工确认）"; }
+  else if (oc === "verify_failed") { tag = "回滚验证失败（需人工介入）"; }
+  else if (oc === "failed") { tag = "未成功回滚（需人工介入）"; }
+  else { tag = safe ? "已自动回滚并验证通过" : "未成功回滚（需人工介入）"; tagCls = safe ? "yes" : "no"; }
+  h += "<div><b>是否已回滚</b><span class='tag " + tagCls + "'>" + tag + "</span></div>";
+  // 这三行是给"这句话凭什么这么说"留证据：验证到底跑没跑、文件恢复了没有、失败原因码是什么。
+  if (r) {
+    const vt = !vran ? "未执行" : (rv ? "已执行并通过" : "已执行，未通过");
+    h += "<div><b>回滚验证</b>" + esc(vt) + "</div>";
+    h += "<div><b>配置正文是否已恢复</b>" + esc(restored ? "是（current/ 与目标版本逐字节一致）" : "否 / 未确认") + "</div>";
+    if (code) h += "<div><b>结论代码</b><code>" + esc(code) + "</code></div>";
+  }
+  if (r && r.rollback_note) h += "<div><b>回滚说明</b>" + esc(r.rollback_note) + "</div>";
+  h += "</div>";
+  if (r && r.rollback_checks && r.rollback_checks.length) {
+    h += "<h2 style='font-size:14px;margin:12px 0 4px'>回滚判据（逐条）</h2><pre>" + esc(r.rollback_checks.join("\n")) + "</pre>";
+  }
+  if (!safe && r && r.manual_fix && r.manual_fix.length) {
+    h += "<h2 style='font-size:14px;margin:12px 0 4px'>请人工处理（可逐行复制执行）</h2><pre>" + esc(r.manual_fix.join("\n")) + "</pre>";
+  }
+  // 提醒（warning）：**不影响回滚结论**，但必须让人看见。
+  h += warningsBlock(r ? r.warnings : null);
+  h += "</div>";
+  $(boxId).innerHTML = h;
+}
+
+function phaseLabel(k) {
+  for (const p of PHASES) if (p[0] === k) return p[1];
+  return k || "-";
+}
+
+async function doPublish(msgId, listId, boxId) {
+  if (!nodeId) { show(msgId, "未找到节点", "err"); return; }
+  $(boxId).innerHTML = "";
+  renderPhases(listId, null, null);
+  show(msgId, "发布中…（语法检查 → 端口检查 → 写入 → reload → 验证 → 源站探测）", "warn");
+
+  const res = await api("POST", "/api/nodes/" + nodeId + "/publish", { note: "管理台发布" });
+
+  // 平台侧语义校验失败（在写任何文件之前）
+  if (res.status === 422 && res.data && res.data.code === "validation_failed") {
+    renderFailure(boxId, listId, null, "precheck", errText(res, "配置未通过平台校验"));
+    show(msgId, "发布已中止：配置未通过平台校验。现有转发未受影响。", "err");
+    return;
+  }
+  // 发布前端口占用（同样在写文件之前）
+  if (res.status === 422 && res.data && res.data.code === "port_in_use") {
+    renderFailure(boxId, listId, null, "portcheck", errText(res, "端口被占用"));
+    show(msgId, "发布已中止：端口被其它程序占用。现有转发未受影响。", "err");
+    return;
+  }
+  if (res.status !== 200 && res.status !== 409) {
+    renderFailure(boxId, listId, null, "render", errText(res, "发布失败"));
+    show(msgId, errText(res, "发布失败"), "err");
+    return;
+  }
+
+  const d = res.data || {};
+  if (d.status === "failed" || res.status === 409) {
+    renderFailure(boxId, listId, d, d.phase || "verify", d.message || "发布失败");
+    // 气泡里的措辞与失败面板同源（都取 rollback_outcome），不允许各说一套。
+    const oc = d.rollback_outcome || "";
+    const verdict =
+      oc === "verified" ? "已自动回滚并验证通过。" :
+      oc === "not_needed" ? "改动未生效，原版本仍在正常运行。" :
+      oc === "not_applied" ? "改动尚未下发到数据面，现有转发未受影响。" :
+      oc === "restored_not_verified" ? "配置已恢复到旧版本，但**回滚验证没有执行**，请按下方人工处理步骤确认。" :
+      oc === "verify_failed" ? "配置已恢复，但**回滚验证未通过**，请按下方人工处理步骤操作。" :
+      oc === "failed" ? "回滚未成功，请按下方人工处理步骤操作。" :
+      (d.rolled_back ? "已自动回滚。" :
+       d.no_rollback_needed ? "改动未生效，原版本仍在正常运行。" :
+       "未成功回滚，请按下方人工处理步骤操作。");
+    show(msgId, "发布失败（阶段：" + phaseLabel(d.phase) + "）。" + verdict, "err");
+    return;
+  }
+
+  renderPhases(listId, null, true);
+  $(boxId).innerHTML = "";
+  let s = "发布完成：版本 v" + (d.version || "?") + "，状态 " + (d.status || "?");
+  if (d.verify_waited_ms) s += "\n就绪等待 " + d.verify_waited_ms + "ms（重试 " + (d.verify_attempts || 0) + " 次）";
+  // 注意：publish 返回里的 listeners 是 ListenerStatus，地址在**嵌套**的 expected 里
+  // （而 /preview 返回的 expected_listeners 是扁平的）。两者形状不同，写混了就会
+  // 显示成 "undefined:undefined" —— 这里曾经就是这么错的。
+  s += "\n监听：" + ((d.verify && d.verify.listeners || []).map(l => l.expected.addr + ":" + l.expected.port).join(", ") || "无");
+  s += "\n源站探测：可用 " + (d.origin_up || 0) + " / 不可用 " + (d.origin_down || 0);
+  if (d.origin_down > 0) s += "\n注意：源站不可达不代表发布失败——配置已生效，请检查源站本身。";
+  // warning 不影响结论，但必须看得见：它说的是"这次成了，但有一件事你必须知道"。
+  if (d.warnings && d.warnings.length) {
+    s += "\n提醒（不影响本次发布）：存在 " + d.warnings.length + " 条未纳入清单的额外文件，见下方。";
+  }
+  show(msgId, s, "ok");
+  // 细节落到面板里（可复制、不会被下一次提示顶掉）。
+  $(boxId).innerHTML = (d.warnings && d.warnings.length)
+    ? "<div class='card' style='border-color:#fde68a;background:#fffbeb'>" + warningsBlock(d.warnings) + "</div>"
+    : "";
+  // 发布成功后系统"已有业务"，刷新元信息，下次进入直接到总览
+  const m = await api("GET", "/api/meta");
+  if (m.status === 200 && m.data) meta = m.data;
+  await loadSNI(); await loadBiz();
+}
+
+$("btnPublish").onclick = () => doPublish("pubMsg", "phaseList", "failBox");
+$("btnDPublish").onclick = () => doPublish("dPubMsg", "dPhaseList", "dFailBox");
+
+$("btnPreview").onclick = async () => {
+  if (!nodeId) { show("dPubMsg", "未找到节点", "err"); return; }
+  const res = await api("GET", "/api/nodes/" + nodeId + "/preview");
+  if (res.status !== 200) { show("dPubMsg", errText(res, "预检失败"), "err"); return; }
+  const d = res.data || {};
+  if (d.validation_ok) {
+    show("dPubMsg", "预检通过（版本 v" + d.version + "）。\n预计监听：" +
+      ((d.expected_listeners || []).map(l => l.addr + ":" + l.port).join(", ") || "无"), "ok");
+  } else {
+    let s = "预检未通过：";
+    for (const i of ((d.validation && d.validation.issues) || [])) s += "\n - [" + i.code + "] " + i.message;
+    show("dPubMsg", s, "err");
+  }
+};
+
+$("btnRollback").onclick = async () => {
+  if (!nodeId) { show("dPubMsg", "未找到节点", "err"); return; }
+  const cur = (meta.node && meta.node.applied_version) || 0;
+  if (cur <= 1) { show("dPubMsg", "当前生效版本是 v" + cur + "，没有更早的可回滚版本。", "warn"); return; }
+  const res = await api("POST", "/api/nodes/" + nodeId + "/rollback", { version: cur - 1, reason: "管理台回滚" });
+  if (res.status !== 200) { show("dPubMsg", errText(res, "回滚失败"), "err"); return; }
+  show("dPubMsg", "已回滚到 v" + (res.data && res.data.version) + "。", "ok");
+  const m = await api("GET", "/api/meta");
+  if (m.status === 200 && m.data) meta = m.data;
+  await refreshDash();
+};
+</script>
+</body>
+</html>

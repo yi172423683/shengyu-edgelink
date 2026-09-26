@@ -1,0 +1,50 @@
+// shengyu 管理面所需的唯一一条特权授权。
+//
+// 背景（评审 F03 + 后续复核意见）：
+//   管理面按最小权限以 shengyu 用户运行，而"令新配置平滑生效"必须去操作
+//   **root 的** systemd 服务 shengyu-edgelink-haproxy。在普通干净系统上，非 root 进程
+//   直接 `systemctl reload shengyu-edgelink-haproxy` 会被 D-Bus/polkit 拒绝。
+//
+// ⚠️ 为什么**不能**用 sudo（这是本次复核明确要求改掉的一点）：
+//   shengyu-edgelink-server.service 里带 NoNewPrivileges=true。这条沙箱设置的语义是
+//   "本进程及其子进程不允许通过 setuid/setgid 提升权限"。而 sudo 恰恰依赖 setuid ——
+//   两者放在一起，sudo **永远不可能成功**，且失败信息只有一句
+//   "sudo: effective uid is not 0"，与"授权没配好"看起来一模一样，极难定位。
+//
+// ✅ 正确做法是让**进程完全不提权**，把授权交给 systemd 的 D-Bus + polkit：
+//   1) 进程仍以 shengyu 身份执行 `systemctl reload shengyu-edgelink-haproxy`；
+//   2) 请求经 D-Bus 到达 **systemd 自己**（它本来就是特权进程，由它做实际动作）；
+//   3) polkitd 按下面的规则判断"这个 uid 能不能对这个 unit 做这个动作"。
+//   polkitd 是常驻系统服务，客户端不需要任何特权位，因此与 NoNewPrivileges 兼容。
+//
+// 授权范围刻意收窄到最小：
+//   - 只允许一个用户（shengyu）；
+//   - 只允许一个 D-Bus 动作（org.freedesktop.systemd1.manage-units）；
+//   - 只允许一个 unit（shengyu-edgelink-haproxy.service）；
+//   - 只允许一个动作动词（verb == "reload"）。
+// 即使管理面被完全攻破，攻击者能做的也只是"让 HAProxy 重新加载当前配置" ——
+// 不能 start/stop/restart、不能碰其它服务、不能执行任意命令。
+// 这正是评审 F03 要求的"严格限定服务与动作的授权"，而不是"给个万能 helper"。
+//
+// 安装方式（deploy/install.sh 会自动完成）：
+//   install -m 0644 deploy/polkit-50-shengyu-edgelink.rules /etc/polkit-1/rules.d/50-shengyu-edgelink.rules
+//   systemctl restart polkit     # 有的发行版是 polkitd
+//
+// 排障提示：若发布时报 "Access denied"，先看
+//   journalctl -u polkit --since "5 min ago"
+// 以及本文件的路径与权限（必须 root:root 0644，且所在目录可被 polkitd 读取）。
+polkit.addRule(function (action, subject) {
+    if (action.id !== "org.freedesktop.systemd1.manage-units") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (subject.user !== "shengyu") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (action.lookup("unit") !== "shengyu-edgelink-haproxy.service") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (action.lookup("verb") !== "reload") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    return polkit.Result.YES;
+});
