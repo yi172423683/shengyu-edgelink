@@ -219,6 +219,9 @@ func (s *Server) routes() *http.ServeMux {
 	// ---- 需要登录 ----
 	m.Handle("GET /api/me", s.auth(http.HandlerFunc(s.handleMe)))
 	m.Handle("POST /api/me/password", s.auth(s.csrf(http.HandlerFunc(s.handleChangeMyPassword))))
+	m.Handle("GET /api/users", s.auth(http.HandlerFunc(s.handleListUsers)))
+	m.Handle("POST /api/users", s.auth(s.csrf(http.HandlerFunc(s.handleCreateUser))))
+	m.Handle("POST /api/users/{id}/password", s.auth(s.csrf(http.HandlerFunc(s.handleResetUserPassword))))
 	m.Handle("GET /api/meta", s.auth(http.HandlerFunc(s.handleMeta)))
 
 	m.Handle("GET /api/overview", s.auth(http.HandlerFunc(s.handleOverview)))
@@ -465,6 +468,60 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 type changePasswordReq struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
+}
+
+func adminUser(r *http.Request) (*store.User, bool) {
+	u, ok := r.Context().Value(ctxUser).(*store.User)
+	return u, ok && u != nil && strings.EqualFold(u.Role, "admin")
+}
+
+type createUserReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminUser(r); !ok {
+		writeErr(w, http.StatusForbidden, "只有管理员可以管理账号", "admin_required", "")
+		return
+	}
+	users, err := s.Store.ListUsers()
+	if err != nil { mapStoreErr(w, err, "账号"); return }
+	type userView struct {
+		ID string `json:"id"`; Username string `json:"username"`; Role string `json:"role"`
+		Enabled bool `json:"enabled"`; IPAllowlist string `json:"ip_allowlist"`
+		CreatedAt time.Time `json:"created_at"`; LastLoginAt time.Time `json:"last_login_at"`
+	}
+	out := make([]userView, 0, len(users))
+	for _, u := range users { out = append(out, userView{u.ID, u.Username, u.Role, u.Enabled, u.IPAllowlist, u.CreatedAt, u.LastLoginAt}) }
+	writeJSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+	_, ok := adminUser(r)
+	if !ok { writeErr(w, http.StatusForbidden, "只有管理员可以创建账号", "admin_required", ""); return }
+	var req createUserReq
+	if err := decodeJSON(r, &req); err != nil { writeErr(w, http.StatusBadRequest, err.Error(), "bad_request", ""); return }
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" || len([]rune(req.Username)) > 64 { writeErr(w, http.StatusBadRequest, "用户名不能为空且不能超过 64 个字符", "username_invalid", ""); return }
+	if len([]rune(req.Password)) < 12 { writeErr(w, http.StatusBadRequest, "口令至少需要 12 个字符", "password_too_short", ""); return }
+	role := strings.TrimSpace(req.Role); if role == "" { role = "admin" }
+	u := &store.User{ID: id.New("usr"), Username: req.Username, Role: role, Enabled: true}
+	if err := s.Store.CreateUser(u, req.Password, auth.DefaultIterations); err != nil { mapStoreErr(w, err, "账号"); return }
+	s.audit(r, "auth.user_create", "user", u.ID, "创建账号 "+u.Username, "ok", "")
+	writeJSON(w, http.StatusCreated, map[string]any{"id": u.ID, "username": u.Username, "role": u.Role})
+}
+
+func (s *Server) handleResetUserPassword(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminUser(r); !ok { writeErr(w, http.StatusForbidden, "只有管理员可以重置账号口令", "admin_required", ""); return }
+	var req struct { Password string `json:"password"` }
+	if err := decodeJSON(r, &req); err != nil { writeErr(w, http.StatusBadRequest, err.Error(), "bad_request", ""); return }
+	if len([]rune(req.Password)) < 12 { writeErr(w, http.StatusBadRequest, "口令至少需要 12 个字符", "password_too_short", ""); return }
+	u, err := s.Store.GetUser(r.PathValue("id")); if err != nil { mapStoreErr(w, err, "账号"); return }
+	if err := s.Store.UpdateUserPassword(u.ID, req.Password, auth.DefaultIterations); err != nil { writeErr(w, http.StatusInternalServerError, "重置口令失败", "password_update_failed", err.Error()); return }
+	s.audit(r, "auth.user_password_reset", "user", u.ID, "重置账号口令 "+u.Username, "ok", "")
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": u.Username})
 }
 
 // handleChangeMyPassword 修改当前账号口令，并由 store 一次性吊销该账号旧会话。
