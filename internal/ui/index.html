@@ -11,7 +11,7 @@
   header { min-height:62px; padding:12px max(24px,calc((100vw - 1180px)/2)); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:rgba(255,255,255,.88); border-bottom:1px solid #e5e5e5; }
   header h1 { margin:0; font-size:18px; font-weight:600; }
   header .sub { color:var(--muted); font-size:12px; }
-  main { max-width:1180px; margin:0 auto; padding:24px; }
+  main { width:100%; max-width:none; margin:0; padding:20px 24px 32px; }
   #loginCard { max-width:520px; margin:8vh auto 0; padding:28px; }
   #loginCard h2 { font-size:22px; margin-bottom:8px; }
   .card { margin-bottom:16px; padding:20px; background:var(--surface); border:1px solid var(--bd); border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.035); }
@@ -331,7 +331,7 @@
               <option value="https">https — HTTP 探测（走 TLS）</option>
             </select>
           </div>
-          <div><label>使用的数据面入口</label><select id="dSniSelect"></select></div>
+          <div><label>使用的数据面入口 <span class="req">*</span></label><select id="dSniSelect"></select><div class="hint">同一域名要转发到多个端口，请先创建多个入口，再分别选择对应入口。</div></div>
         </div>
         <div class="row"><button id="btnDBiz">添加业务</button><button id="btnCancelBizEdit" class="ghost" style="display:none">取消编辑</button></div>
         <div class="msg" id="dBizMsg"></div>
@@ -791,6 +791,18 @@ $("btnDBiz").onclick = async () => {
   const c = collectBiz("dBizName", "dDomains", "dOriginHost", "dOriginPort", "dHcKind", "dSniSelect");
   if (c.err) { show("dBizMsg", c.err, "err"); return; }
   const editing = editingBizId;
+  const selectedEntry = $("dSniSelect").value;
+  const selectedDomains = c.body.domains;
+  const conflict = bizList.find(function (b) {
+    if (editing && b.id === editing) return false;
+    if (b.sni_entry_id !== selectedEntry) return false;
+    return (b.domains || []).some(d => selectedDomains.indexOf(String(d).toLowerCase()) >= 0);
+  });
+  if (conflict) {
+    const e = sniList.find(x => x.id === selectedEntry);
+    show("dBizMsg", "当前入口 " + (e ? e.bind_addr + ":" + e.bind_port : selectedEntry) + " 已有域名 " + selectedDomains.join(", ") + " 的业务《" + (conflict.name || conflict.id) + "》。\n如果要把同一域名转发到另一个源站端口，请新增另一个入口（例如 443 或 8444），再在这里切换入口。", "err");
+    return;
+  }
   const res = await api(editing ? "PUT" : "POST", editing ? "/api/businesses/" + editing : "/api/businesses", c.body);
   if (res.status !== (editing ? 200 : 201)) { show("dBizMsg", errText(res, editing ? "保存业务失败" : "添加业务失败"), "err"); return; }
   show("dBizMsg", (editing ? "已保存业务《" : "已添加业务《") + c.body.name + "》（还需发布生效）", "ok");
