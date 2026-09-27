@@ -218,6 +218,7 @@ func (s *Server) routes() *http.ServeMux {
 
 	// ---- 需要登录 ----
 	m.Handle("GET /api/me", s.auth(http.HandlerFunc(s.handleMe)))
+	m.Handle("POST /api/me/password", s.auth(s.csrf(http.HandlerFunc(s.handleChangeMyPassword))))
 	m.Handle("GET /api/meta", s.auth(http.HandlerFunc(s.handleMeta)))
 
 	m.Handle("GET /api/overview", s.auth(http.HandlerFunc(s.handleOverview)))
@@ -459,6 +460,38 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"id": u.ID, "username": u.Username, "role": u.Role,
 		"last_login_at": u.LastLoginAt, "ip_allowlist": u.IPAllowlist,
 	})
+}
+
+type changePasswordReq struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// handleChangeMyPassword 修改当前账号口令，并由 store 一次性吊销该账号旧会话。
+func (s *Server) handleChangeMyPassword(w http.ResponseWriter, r *http.Request) {
+	u, _ := r.Context().Value(ctxUser).(*store.User)
+	if u == nil {
+		writeErr(w, http.StatusUnauthorized, "未登录", "unauthorized", "")
+		return
+	}
+	var req changePasswordReq
+	if err := decodeJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error(), "bad_request", "")
+		return
+	}
+	if len([]rune(req.NewPassword)) < 12 {
+		writeErr(w, http.StatusBadRequest, "新口令至少需要 12 个字符", "password_too_short", "")
+		return
+	}
+	if _, err := s.Store.Authenticate(u.Username, req.CurrentPassword); err != nil {
+		writeErr(w, http.StatusUnauthorized, "当前口令不正确", "current_password_invalid", "")
+		return
+	}
+	if err := s.Store.UpdateUserPassword(u.ID, req.NewPassword, auth.DefaultIterations); err != nil {
+		writeErr(w, http.StatusInternalServerError, "修改口令失败", "password_update_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "next_step": "口令已修改，当前会话已失效，请使用新口令重新登录"})
 }
 
 // allowLogin 简易滑动窗口限流，防暴力破解。

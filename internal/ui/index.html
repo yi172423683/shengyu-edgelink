@@ -233,6 +233,18 @@
       </div>
 
       <div class="card">
+        <h2>账户安全</h2>
+        <div class="desc">修改当前管理员口令。修改成功后现有登录会话会失效，需要使用新口令重新登录。</div>
+        <div class="grid">
+          <div><label>当前口令</label><input id="currentPassword" type="password" autocomplete="current-password"></div>
+          <div><label>新口令（至少 12 个字符）</label><input id="newPassword" type="password" autocomplete="new-password"></div>
+          <div><label>确认新口令</label><input id="confirmPassword" type="password" autocomplete="new-password"></div>
+        </div>
+        <div class="row"><button id="btnChangePassword">修改口令</button></div>
+        <div class="msg" id="passwordMsg"></div>
+      </div>
+
+      <div class="card">
         <h2>数据面入口</h2>
         <div class="desc">继续新增入口：填写监听地址与监听端口，创建前会检查端口占用。443 只是默认推荐值，不是唯一入口。</div>
         <div class="grid">
@@ -371,6 +383,24 @@ $("btnLogin").onclick = async () => {
 $("p").addEventListener("keydown", event => {
   if (event.key === "Enter") $("btnLogin").click();
 });
+
+$("btnChangePassword").onclick = async () => {
+  const current = $("currentPassword").value;
+  const next = $("newPassword").value;
+  if (next !== $("confirmPassword").value) {
+    show("passwordMsg", "两次输入的新口令不一致", "err");
+    return;
+  }
+  const res = await api("POST", "/api/me/password", {
+    current_password: current, new_password: next
+  });
+  if (res.status !== 200) {
+    show("passwordMsg", errText(res, "修改口令失败"), "err");
+    return;
+  }
+  show("passwordMsg", "口令已修改，页面即将回到登录页，请使用新口令登录。", "ok");
+  setTimeout(() => location.reload(), 900);
+};
 
 async function boot() {
   const m = await api("GET", "/api/meta");
@@ -633,7 +663,19 @@ async function delSNI(id, port, msgId) {
 
 async function loadBiz() {
   const res = await api("GET", "/api/businesses");
-  bizList = (res.data && res.data.items) || [];
+  const listed = (res.data && res.data.items) || [];
+  // 业务摘要接口不带路由里的源站字段；读取详情后再渲染，避免已保存的 IP/端口显示成"-"。
+  const details = await Promise.all(listed.map(async function (b) {
+    const detail = await api("GET", "/api/businesses/" + encodeURIComponent(b.id));
+    const routes = (detail.data && detail.data.routes) || [];
+    const route = routes.find(r => r.node_id === nodeId) || routes[0] || {};
+    return Object.assign({}, b, {
+      origin_host: route.origin_host || "",
+      origin_port: route.origin_port || 0,
+      route_id: route.id || ""
+    });
+  }));
+  bizList = details;
   let h = "<table><tr><th>业务</th><th>模式</th><th>域名</th><th>源站地址</th><th>源站端口</th><th>健康检查方式</th><th>操作</th></tr>";
   for (const b of bizList) {
     h += "<tr><td>" + esc(b.name || b.id) + "</td><td>" + esc(b.mode) + "</td><td>" +
