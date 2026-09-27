@@ -257,10 +257,10 @@
 
       <div class="card">
         <h2>数据面入口</h2>
-        <div class="desc">客户端实际连接的公网监听地址。业务发布后，域名流量从这里进入。</div>
+        <div class="desc">本站监听入口：客户端实际连接的公网地址。它和业务里的“源站端口”是两件事；填写源站 8444 不会自动创建本站 8444。</div>
         <div class="grid">
-          <div><label>监听地址</label><input id="dBindAddr" value="0.0.0.0"></div>
-          <div><label>监听端口</label><input id="dBindPort" value="9443" type="number" min="1" max="65535"></div>
+          <div><label>本站监听地址</label><input id="dBindAddr" value="0.0.0.0"></div>
+          <div><label>本站监听端口</label><input id="dBindPort" value="8444" type="number" min="1" max="65535"></div>
         </div>
         <div class="row"><button id="btnDSNI">新增入口</button></div>
         <div class="msg" id="dSniMsg"></div>
@@ -316,12 +316,12 @@
 
       <div class="card" id="businessCard">
         <h2>业务（域名 / 源站 / 健康检查）</h2>
-        <div class="desc">继续添加：域名、源站地址、源站端口和健康检查方式。同一域名可以分别挂在不同入口端口；同一个入口上的同一域名只能有一条规则。</div>
+        <div class="desc">“本站入口”是客户端连接的端口；“源站端口”是平台连接源站的端口。同一域名要转发到多个源站端口，必须分别建立本站入口。</div>
         <div class="grid">
           <div><label>业务名称</label><input id="dBizName" placeholder="例如：客户B-接口"></div>
           <div><label>域名</label><input id="dDomains" placeholder="b.example.com"><div class="hint">例如同一域名可分别配置到 443 和 8444 两个入口。</div></div>
           <div><label>源站地址</label><input id="dOriginHost" placeholder="10.0.0.6"></div>
-          <div><label>源站端口</label><input id="dOriginPort" type="number" value="443" min="1" max="65535"></div>
+          <div><label>源站端口</label><input id="dOriginPort" type="number" value="443" min="1" max="65535"><div class="hint">例如源站 443 或 8444；这不会自动创建本站监听端口。</div></div>
           <div>
             <label>健康检查方式</label>
             <select id="dHcKind">
@@ -331,7 +331,7 @@
               <option value="https">https — HTTP 探测（走 TLS）</option>
             </select>
           </div>
-          <div><label>使用的数据面入口 <span class="req">*</span></label><select id="dSniSelect"></select><div class="hint">同一域名要转发到多个端口，请先创建多个入口，再分别选择对应入口。</div></div>
+          <div><label>使用的本站入口 <span class="req">*</span></label><select id="dSniSelect"></select><div class="row"><button id="btnOpenSettings" type="button" class="ghost">创建/查看本站入口</button></div><div class="hint">同一域名要转发到多个端口，请先创建多个本站入口，再分别选择对应入口。</div></div>
         </div>
         <div class="row"><button id="btnDBiz">添加业务</button><button id="btnCancelBizEdit" class="ghost" style="display:none">取消编辑</button></div>
         <div class="msg" id="dBizMsg"></div>
@@ -800,7 +800,7 @@ $("btnDBiz").onclick = async () => {
   });
   if (conflict) {
     const e = sniList.find(x => x.id === selectedEntry);
-    show("dBizMsg", "当前入口 " + (e ? e.bind_addr + ":" + e.bind_port : selectedEntry) + " 已有域名 " + selectedDomains.join(", ") + " 的业务《" + (conflict.name || conflict.id) + "》。\n如果要把同一域名转发到另一个源站端口，请新增另一个入口（例如 443 或 8444），再在这里切换入口。", "err");
+    show("dBizMsg", "本站入口 " + (e ? e.bind_addr + ":" + e.bind_port : selectedEntry) + " 已有域名 " + selectedDomains.join(", ") + " 的业务《" + (conflict.name || conflict.id) + "》。\n请先创建另一个“本站监听端口”（例如 443 或 8444），再在“使用的本站入口”中切换；源站端口不会自动变成本站入口。", "err");
     return;
   }
   const res = await api(editing ? "PUT" : "POST", editing ? "/api/businesses/" + editing : "/api/businesses", c.body);
@@ -819,12 +819,19 @@ $("btnCancelBizEdit").onclick = () => {
   show("dBizMsg", "已取消编辑", "ok");
 };
 
+$("btnOpenSettings").onclick = () => {
+  const panel = $("settingsDetails");
+  panel.open = true;
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  show("dBizMsg", "请在“本站监听端口”中创建 443 或 8444，创建后回到这里选择对应入口。", "ok");
+};
+
 // ---------------- 列表 ----------------
 async function loadSNI() {
   if (!nodeId) return;
   const res = await api("GET", "/api/nodes/" + nodeId + "/sni-entries");
   sniList = (res.data && res.data.items) || [];
-  let h = "<table><tr><th>入口 ID</th><th>监听地址</th><th>监听端口</th><th>状态</th><th>操作</th></tr>";
+  let h = "<table><tr><th>入口 ID</th><th>本站监听地址</th><th>本站监听端口</th><th>状态</th><th>操作</th></tr>";
   let opts = "";
   for (const e of sniList) {
     h += "<tr><td>" + esc(e.id) + "</td><td>" + esc(e.bind_addr) + "</td><td>" + esc(e.bind_port) +
