@@ -262,13 +262,13 @@ fi
 # 第 8 步会自己再问一次，或在完全非交互的场景自动生成强口令 ——
 # 三条路径都通向"一定有管理员可用"。
 #
-# 这里用**字面路径**判断"是否已有数据"（不引用 DATA_ROOT）：DATA_ROOT 在下面才定义，
-# 而向导要在这之前问完。多写一个路径常量，比打乱变量定义顺序更不容易出错。
+# 这里使用最终布局路径判断是否已有数据；变量在后面统一定义，所以先计算一次。
+EARLY_DATA_ROOT="${SHENGYU_ROOT:+$SHENGYU_ROOT/data}"
 if [ -z "${ADMIN_PASS:-}" ] && [ "$DRY" = 0 ] && [ -t 0 ]; then
   # 标记"已经问过了"：第 8 步只在没问过时才追问，否则用户会被同一件事拦两次。
   # 用 ${VAR:-0} 的默认值判断而不是裸引用，是为了在 set -u 下也安全。
   ADMIN_PASS_ASKED=1
-  if [ -f "/var/lib/shengyu-edgelink/meta.db" ]; then
+  if [ -n "$EARLY_DATA_ROOT" ] && [ -f "$EARLY_DATA_ROOT/meta.db" ] || [ -f "/var/lib/shengyu-edgelink/meta.db" ]; then
     printf '管理员初始密码（检测到已有数据，本项不生效，直接回车跳过）：'
     if ! read -r -s ANS_PASS; then ANS_PASS=""; fi
     printf '\n'
@@ -358,7 +358,19 @@ resolve_dist() {
   printf '%s\n' "$SELF_DIR/../dist"
 }
 DIST="${DIST:-$(resolve_dist)}"
-CONF_ROOT=/etc/shengyu-edgelink/haproxy
+APP_ROOT="${SHENGYU_ROOT:-}"
+if [ -n "$APP_ROOT" ]; then
+  case "$APP_ROOT" in /*) ;; *) echo "SHENGYU_ROOT 必须是绝对路径：$APP_ROOT" >&2; exit 1 ;; esac
+  CONF_ROOT="$APP_ROOT/config/haproxy"
+  DATA_ROOT="$APP_ROOT/data"
+  BIN_DIR="$APP_ROOT/bin"
+  MENU_BIN="$APP_ROOT/bin/edgelink"
+else
+  CONF_ROOT=/etc/shengyu-edgelink/haproxy
+  DATA_ROOT=/var/lib/shengyu-edgelink
+  BIN_DIR=/usr/local/bin
+  MENU_BIN=/usr/local/bin/edgelink
+fi
 # DATA_ROOT 是**状态目录本身**（= 服务运行时的 -data），LOG_ROOT 是它下面的日志分片根。
 #
 # 为什么必须显式写出 DATA_ROOT 而不能只建 LOG_ROOT（这是本轮排查发现的缺陷）：
@@ -367,9 +379,7 @@ CONF_ROOT=/etc/shengyu-edgelink/haproxy
 #   写在 /var/lib/shengyu-edgelink 这一层 —— 于是管理与首发会在启动时报
 #   "permission denied"，且报错发生在另一个服务里，看上去像是数据库坏了。
 #   只要有一层父目录忘了赋权，这类问题就必然出现，所以两层都显式建、显式赋权。
-DATA_ROOT=/var/lib/shengyu-edgelink
 LOG_ROOT=$DATA_ROOT/logs
-BIN_DIR=/usr/local/bin
 HAPROXY_BIN="${HAPROXY_BIN:-/usr/sbin/haproxy}"
 
 say() { printf '\n=== %s ===\n' "$1"; }
@@ -480,7 +490,7 @@ setup_run_as_shengyu() {
 
 say "1. 创建账号与目录"
 run getent group shengyu >/dev/null || run groupadd --system shengyu
-run id -u shengyu >/dev/null 2>&1 || run useradd --system --gid shengyu --home-dir /var/lib/shengyu-edgelink --shell /usr/sbin/nologin shengyu
+run id -u shengyu >/dev/null 2>&1 || run useradd --system --gid shengyu --home-dir "$DATA_ROOT" --shell /usr/sbin/nologin shengyu
 # 目录所有权分工（最小权限，三处路径必须与两个 unit 和程序参数完全一致 —— 评审 F02）：
 #   /etc/shengyu-edgelink/haproxy  —— 配置。shengyu 写，HAProxy 只读
 #   /var/lib/shengyu-edgelink      —— 状态。元数据库与日志分片，只有管理面读写
@@ -488,11 +498,25 @@ run id -u shengyu >/dev/null 2>&1 || run useradd --system --gid shengyu --home-d
 run install -d -m 0750 -o shengyu -g shengyu "$CONF_ROOT"
 run install -d -m 0750 -o shengyu -g shengyu "$CONF_ROOT/versions"
 run install -d -m 0750 -o shengyu -g shengyu "$CONF_ROOT/current"
+run install -d -m 0755 "$BIN_DIR"
 # DATA_ROOT **必须单独建**：它不只是 LOG_ROOT 的父目录，它本身就是 -data 指向的位置，
 # meta.db 直接写在它下面（详见文件头的说明）。只建 LOG_ROOT 会把这一层留给 root，
 # 结果是"日志文件能写、元数据库写不了"这种最难归因的半通状态。
 run install -d -m 0750 -o shengyu -g shengyu "$DATA_ROOT"
 run install -d -m 0750 -o shengyu -g shengyu "$LOG_ROOT"
+
+# 使用 /opt 布局时，首次迁移保留旧安装的数据库、日志和已发布配置。
+if [ "$DRY" = 0 ] && [ -n "$APP_ROOT" ]; then
+  if [ ! -f "$DATA_ROOT/meta.db" ] && [ -f /var/lib/shengyu-edgelink/meta.db ]; then
+    cp -a /var/lib/shengyu-edgelink/. "$DATA_ROOT/"
+    echo "  已迁移旧状态到 $DATA_ROOT"
+  fi
+  if [ ! -f "$CONF_ROOT/current/haproxy.cfg" ] && [ -f /etc/shengyu-edgelink/haproxy/current/haproxy.cfg ]; then
+    cp -a /etc/shengyu-edgelink/haproxy/. "$CONF_ROOT/"
+    echo "  已迁移旧配置到 $CONF_ROOT"
+  fi
+  chown -R shengyu:shengyu "$DATA_ROOT" "$CONF_ROOT"
+fi
 
 # 账号已存在后再决定如何以它身份执行命令（见 setup_run_as_shengyu 的说明）。
 setup_run_as_shengyu
@@ -550,16 +574,25 @@ fi
 MENU_SRC="$SELF_DIR/shengyu-edgelink-menu.sh"
 if [ -f "$MENU_SRC" ]; then
   if [ "$DRY" = 1 ]; then
-    echo "  [dry-run] install -m 0755 $MENU_SRC /usr/local/bin/edgelink"
+    echo "  [dry-run] install -m 0755 $MENU_SRC $MENU_BIN"
   else
-    install -m 0755 "$MENU_SRC" /usr/local/bin/edgelink
-    echo "  已安装管理菜单：edgelink"
+    install -m 0755 "$MENU_SRC" "$MENU_BIN"
+    echo "  已安装管理菜单：$MENU_BIN"
   fi
 fi
 
 say "4. 安装 systemd 单元（独立实例，不影响系统自带服务）"
 run install -m 0644 deploy/shengyu-edgelink-haproxy.service /etc/systemd/system/shengyu-edgelink-haproxy.service
 run install -m 0644 deploy/shengyu-edgelink-server.service /etc/systemd/system/shengyu-edgelink-server.service
+if [ "$DRY" = 0 ] && [ -n "$APP_ROOT" ]; then
+  for unit in /etc/systemd/system/shengyu-edgelink-haproxy.service /etc/systemd/system/shengyu-edgelink-server.service; do
+    sed -i \
+      -e "s|/usr/local/bin/shengyu-edgelink|$BIN_DIR/shengyu-edgelink|g" \
+      -e "s|/etc/shengyu-edgelink/haproxy|$CONF_ROOT|g" \
+      -e "s|/var/lib/shengyu-edgelink|$DATA_ROOT|g" \
+      "$unit"
+  done
+fi
 # 把管理面监听地址写进**已安装**的 unit（需求：安装时可配置管理后台端口）。
 #
 # 为什么在这里注入而不是改源文件：deploy/ 里的模板要保留默认值给"不传参数"的场景，
@@ -639,7 +672,7 @@ elif [ -x "$BIN_DIR/shengyu-edgelink" ]; then
     #
     # HOME 显式指到服务 HOME：部分发行版在 uid 切换后保留调用者的 HOME，
     # 若那个目录对 shengyu 不可写，会得到与"配置目录没权限"难以区分的报错。
-    if HOME=/var/lib/shengyu-edgelink $SHENGYU_RUN \
+    if HOME="$DATA_ROOT" $SHENGYU_RUN \
          "$BIN_DIR/shengyu-edgelink" -config-root "$CONF_ROOT" -write-baseline; then
       echo "  基线配置已写入 $CONF_ROOT/current（不监听任何端口）"
     else
@@ -701,7 +734,7 @@ if [ -x "$BIN_DIR/shengyu-edgelink" ]; then
     echo "  [dry-run] $SHENGYU_RUN $BIN_DIR/shengyu-edgelink ... -admin-pass '***' -check"
   else
     CHK_LOG="/tmp/shengyu-edgelink-install-check.log"
-    if HOME=/var/lib/shengyu-edgelink $SHENGYU_RUN "$BIN_DIR/shengyu-edgelink" \
+    if HOME="$DATA_ROOT" $SHENGYU_RUN "$BIN_DIR/shengyu-edgelink" \
         -config-root "$CONF_ROOT" -data "$DATA_ROOT" -dataplane haproxy \
         -admin-pass "$ADMIN_PASS" -check >"$CHK_LOG" 2>&1; then
       echo "  管理员已就绪"
