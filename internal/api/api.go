@@ -478,7 +478,6 @@ func adminUser(r *http.Request) (*store.User, bool) {
 type createUserReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Role     string `json:"role"`
 }
 
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
@@ -506,8 +505,7 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	req.Username = strings.TrimSpace(req.Username)
 	if req.Username == "" || len([]rune(req.Username)) > 64 { writeErr(w, http.StatusBadRequest, "用户名不能为空且不能超过 64 个字符", "username_invalid", ""); return }
 	if len([]rune(req.Password)) < 12 { writeErr(w, http.StatusBadRequest, "口令至少需要 12 个字符", "password_too_short", ""); return }
-	role := strings.TrimSpace(req.Role); if role == "" { role = "admin" }
-	u := &store.User{ID: id.New("usr"), Username: req.Username, Role: role, Enabled: true}
+	u := &store.User{ID: id.New("usr"), Username: req.Username, Role: "admin", Enabled: true}
 	if err := s.Store.CreateUser(u, req.Password, auth.DefaultIterations); err != nil { mapStoreErr(w, err, "账号"); return }
 	s.audit(r, "auth.user_create", "user", u.ID, "创建账号 "+u.Username, "ok", "")
 	writeJSON(w, http.StatusCreated, map[string]any{"id": u.ID, "username": u.Username, "role": u.Role})
