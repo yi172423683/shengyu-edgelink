@@ -65,7 +65,12 @@
   .menu { position:sticky; top:0; z-index:2; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; padding:8px; background:rgba(243,243,243,.94); border-bottom:1px solid var(--bd); }
   .menu button { min-height:32px; padding:5px 12px; color:#424242; background:#fff; border:1px solid #d6d6d6; }
   .menu button.active, .menu button:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
-  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } }
+  .charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:14px; }
+  .chartPanel { min-width:0; padding:12px; border:1px solid #ededed; background:#fafafa; }
+  .chartPanel h3 { margin:0 0 8px; font-size:13px; font-weight:600; }
+  canvas.chart { display:block; width:100%; height:220px; background:#fff; border:1px solid #ededed; }
+  @media (min-width:900px) { #dash.ready { display:grid; grid-template-columns:190px minmax(0,1fr); gap:18px; align-items:start; } #dash > .menu { grid-column:1; grid-row:1 / span 30; position:sticky; top:12px; flex-direction:column; min-height:calc(100vh - 100px); margin:0; padding:12px 8px; background:#263b55; border:0; border-radius:6px; } #dash > .menu button { width:100%; color:#dbe7f5; text-align:left; background:transparent; border-color:transparent; } #dash > .menu button.active, #dash > .menu button:hover { color:#fff; background:#1763c6; } #dash > .card, #dash > details { grid-column:2; } }
+  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } .charts { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -290,6 +295,10 @@
         <div class="desc">实时指标来自数据面统计；月度统计来自已结束连接日志。客户端地区需要配置 GeoIP 数据库，未识别地址会显示未知。</div>
         <div class="row"><button id="btnRefreshTraffic">刷新流量</button><span class="hint" id="trafficAt"></span></div>
         <div class="grid" id="trafficKPI"></div>
+        <div class="charts">
+          <div class="chartPanel"><h3>实时带宽</h3><canvas id="liveChart" class="chart" width="720" height="220"></canvas></div>
+          <div class="chartPanel"><h3>近 30 天每日流量</h3><canvas id="historyChart" class="chart" width="720" height="220"></canvas></div>
+        </div>
         <div id="trafficTable"></div>
       </div>
 
@@ -350,7 +359,7 @@
 const $ = id => document.getElementById(id);
 let csrf = "", nodeId = "", customerId = "";
 let meta = null, currentUser = null, wizardStep = 1, sniList = [], bizList = [], editingBizId = "";
-let trafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0;
+let trafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0, liveTrafficPoints = [], latestDailyTraffic = [];
 
 // 发布阶段：顺序与服务端真实执行顺序一致。
 // 界面只是把服务端返回的 phase 映射成"走到哪一步"，不臆造状态。
@@ -488,6 +497,7 @@ async function boot() {
   if (meta.initialized) {
     $("wizard").style.display = "none";
     $("dash").style.display = "";
+    $("dash").classList.add("ready");
     const port = location.port || (location.protocol === "https:" ? "443" : "80");
     $("mgmtPort").value = meta.listen_addr || (location.hostname + ":" + port);
     $("healthUrl").value = "http://" + (meta.listen_addr || (location.hostname + ":" + port)) + "/api/health";
@@ -499,6 +509,7 @@ async function boot() {
     trafficTimer = setInterval(() => loadTraffic(false), 5000);
   } else {
     $("dash").style.display = "none";
+    $("dash").classList.remove("ready");
     $("wizard").style.display = "";
     await fillWelcome();
     await loadSNI();
@@ -543,8 +554,8 @@ async function loadLogs() {
   const res = await api("GET", "/api/logs/conn?limit=50");
   if (res.status !== 200) { show("logsMsg", errText(res, "读取连接日志失败"), "err"); return; }
   const rows = (res.data && res.data.items) || [];
-  let h = "<h3 style='font-size:14px;margin:16px 0 4px'>连接日志（最近 50 条）</h3><table><tr><th>结束时间</th><th>SNI</th><th>客户端</th><th>源站</th><th>结果</th><th>流量</th></tr>";
-  for (const row of rows) h += "<tr><td>" + esc(logValue(row, "end_ts")) + "</td><td>" + esc(logValue(row, "sni")) + "</td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port")) + "</td><td>" + esc(logValue(row, "term_code")) + " " + esc(logValue(row, "term_reason")) + "</td><td>↑" + esc(logValue(row, "bytes_up")) + " / ↓" + esc(logValue(row, "bytes_down")) + "</td></tr>";
+  let h = "<h3 style='font-size:14px;margin:16px 0 4px'>连接日志（最近 50 条）</h3><table><tr><th>结束时间</th><th>入口</th><th>SNI</th><th>客户端</th><th>源站</th><th>结果</th><th>流量</th></tr>";
+  for (const row of rows) h += "<tr><td>" + esc(logValue(row, "end_ts")) + "</td><td>" + esc(logValue(row, "entry_addr")) + ":" + esc(logValue(row, "entry_port")) + "</td><td>" + esc(logValue(row, "sni")) + "</td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port")) + "</td><td>" + esc(logValue(row, "term_code")) + " " + esc(logValue(row, "term_reason")) + "</td><td>↑" + esc(logValue(row, "bytes_up")) + " / ↓" + esc(logValue(row, "bytes_down")) + "</td></tr>";
   $("connLogTable").innerHTML = h + "</table>" + (rows.length ? "" : "<div class='hint'>暂无连接记录，连接结束并上报后会出现在这里。</div>");
   const audit = await api("GET", "/api/audit?limit=30");
   const ar = (audit.data && audit.data.items) || [];
@@ -560,17 +571,57 @@ function bytesText(n) {
   return n.toFixed(i ? 2 : 0) + " " + units[i];
 }
 
+function prepareCanvas(canvas) {
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(320, Math.round(rect.width * dpr));
+  canvas.height = Math.max(160, Math.round(rect.height * dpr));
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function drawTrafficLine(canvas, points) {
+  const c = prepareCanvas(canvas); if (!c) return;
+  const {ctx,w,h} = c, pad = {l:42,r:12,t:14,b:24};
+  ctx.clearRect(0, 0, w, h); ctx.font = "11px Segoe UI"; ctx.strokeStyle = "#e6e6e6";
+  for (let i=0;i<4;i++) { const y=pad.t+(h-pad.t-pad.b)*i/3; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke(); }
+  if (!points.length) { ctx.fillStyle="#777"; ctx.fillText("等待数据", pad.l, h/2); return; }
+  const max = Math.max(1, ...points.map(p => Math.max(p.up,p.down)));
+  const draw = (key,color) => { ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath(); points.forEach((p,i)=>{ const x=pad.l+(w-pad.l-pad.r)*i/Math.max(1,points.length-1); const y=pad.t+(h-pad.t-pad.b)*(1-p[key]/max); if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y); }); ctx.stroke(); };
+  draw("down", "#7256b8"); draw("up", "#18a7a0");
+  ctx.fillStyle="#7256b8"; ctx.fillText("下行", pad.l, h-7); ctx.fillStyle="#18a7a0"; ctx.fillText("上行", pad.l+48, h-7);
+  ctx.fillStyle="#777"; ctx.fillText(bytesText(max)+"/s", 2, pad.t+5);
+}
+
+function drawTrafficBars(canvas, rows) {
+  const c = prepareCanvas(canvas); if (!c) return;
+  const {ctx,w,h} = c, pad = {l:42,r:12,t:14,b:28};
+  ctx.clearRect(0,0,w,h); ctx.font="11px Segoe UI"; ctx.strokeStyle="#e6e6e6";
+  for(let i=0;i<4;i++){const y=pad.t+(h-pad.t-pad.b)*i/3;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();}
+  if(!rows.length){ctx.fillStyle="#777";ctx.fillText("暂无月度数据",pad.l,h/2);return;}
+  const max=Math.max(1,...rows.map(x=>Number(x.bytes_up||0)+Number(x.bytes_down||0)));
+  rows.forEach((row,i)=>{const x=pad.l+(w-pad.l-pad.r)*(i+.5)/rows.length;const bw=Math.max(2,(w-pad.l-pad.r)/rows.length*.58);const up=Number(row.bytes_up||0),down=Number(row.bytes_down||0);const uh=(h-pad.t-pad.b)*up/max,dh=(h-pad.t-pad.b)*down/max;ctx.fillStyle="#18a7a0";ctx.fillRect(x-bw/2,h-pad.b-uh,bw,uh);ctx.fillStyle="#7256b8";ctx.fillRect(x-bw/2,h-pad.b-uh-dh,bw,dh);if(i%Math.ceil(rows.length/6)===0){ctx.fillStyle="#777";ctx.fillText(String(row.day).slice(5),x-14,h-8);}});
+  ctx.fillStyle="#7256b8";ctx.fillText("下行",pad.l,10);ctx.fillStyle="#18a7a0";ctx.fillText("上行",pad.l+48,10);ctx.fillStyle="#777";ctx.fillText(bytesText(max),2,pad.t+5);
+}
+
 async function loadTraffic(forceHistory) {
   if (!nodeId) return;
   const stats = await api("GET", "/api/nodes/" + nodeId + "/stats");
   const st = (stats.data && stats.data.stats) || {};
   const now = Date.now();
   let rate = "-";
+  let downRate = 0, upRate = 0;
   if (previousTraffic && st.bytes_in != null && st.bytes_out != null) {
     const seconds = Math.max(1, (now - previousTraffic.at) / 1000);
-    rate = bytesText((Number(st.bytes_in) - previousTraffic.in) / seconds) + "/s ↓  " + bytesText((Number(st.bytes_out) - previousTraffic.out) / seconds) + "/s ↑";
+    upRate = Math.max(0, (Number(st.bytes_in) - previousTraffic.in) / seconds);
+    downRate = Math.max(0, (Number(st.bytes_out) - previousTraffic.out) / seconds);
+    rate = bytesText(upRate) + "/s ↓  " + bytesText(downRate) + "/s ↑";
   }
   previousTraffic = { at: now, in: Number(st.bytes_in || 0), out: Number(st.bytes_out || 0) };
+  liveTrafficPoints.push({up: upRate, down: downRate}); if (liveTrafficPoints.length > 60) liveTrafficPoints.shift();
+  drawTrafficLine($("liveChart"), liveTrafficPoints);
   $("trafficAt").textContent = "实时刷新 · " + new Date().toLocaleTimeString() + " · 速率 " + rate;
   $("trafficKPI").innerHTML = [
     ["在线连接", st.active_conns || 0], ["累计连接", st.total_conns || 0],
@@ -581,6 +632,8 @@ async function loadTraffic(forceHistory) {
   lastTrafficSummaryAt = Date.now();
   const summary = await api("GET", "/api/traffic/summary?days=30&node_id=" + encodeURIComponent(nodeId));
   const daily = (summary.data && summary.data.daily) || [];
+  latestDailyTraffic = daily;
+  drawTrafficBars($("historyChart"), daily);
   let h = "<h3 style='font-size:14px;margin:16px 0 4px'>近 30 天</h3><table><tr><th>日期</th><th>连接数</th><th>上行</th><th>下行</th></tr>";
   for (const d of daily) h += "<tr><td>" + esc(d.day) + "</td><td>" + esc(d.connections) + "</td><td>" + esc(bytesText(d.bytes_up)) + "</td><td>" + esc(bytesText(d.bytes_down)) + "</td></tr>";
   $("trafficTable").innerHTML = h + "</table>" + (daily.length ? "" : "<div class='hint'>近 30 天还没有已结束连接日志。</div>");
@@ -825,13 +878,16 @@ async function loadBiz() {
     return Object.assign({}, b, {
       origin_host: route.origin_host || "",
       origin_port: route.origin_port || 0,
+      sni_entry_id: route.sni_entry_id || "",
       route_id: route.id || ""
     });
   }));
   bizList = details;
-  let h = "<table><tr><th>业务</th><th>模式</th><th>域名</th><th>源站地址</th><th>源站端口</th><th>健康检查方式</th><th>操作</th></tr>";
+  let h = "<table><tr><th>业务</th><th>入口</th><th>域名</th><th>源站地址</th><th>源站端口</th><th>健康检查方式</th><th>操作</th></tr>";
   for (const b of bizList) {
-    h += "<tr><td>" + esc(b.name || b.id) + "</td><td>" + esc(b.mode) + "</td><td>" +
+    const entry = sniList.find(e => e.id === b.sni_entry_id);
+    const entryText = entry ? entry.bind_addr + ":" + entry.bind_port : (b.sni_entry_id || "-");
+    h += "<tr><td>" + esc(b.name || b.id) + "</td><td>" + esc(entryText) + "</td><td>" +
          esc((b.domains || []).join(", ")) + "</td><td>" + esc(b.origin_host || "-") + "</td><td>" +
          esc(b.origin_port || "-") + "</td><td>" + esc((b.healthcheck && b.healthcheck.kind) || "-") +
          "</td><td><button data-biz-edit=\"" + esc(b.id) + "\">编辑</button> " +
@@ -859,13 +915,13 @@ async function editBiz(id) {
   const detail = await api("GET", "/api/businesses/" + id);
   const b = (detail.data && detail.data.business) || listed;
   const routes = (detail.data && detail.data.routes) || [];
+  const route = routes.find(r => r.node_id === nodeId) || routes[0] || {};
   editingBizId = id;
   $("dBizName").value = b.name || "";
   $("dDomains").value = (b.domains || []).join(", ");
-  $("dOriginHost").value = b.origin_host || "";
-  $("dOriginPort").value = b.origin_port || "";
+  $("dOriginHost").value = route.origin_host || listed.origin_host || "";
+  $("dOriginPort").value = route.origin_port || listed.origin_port || "";
   $("dHcKind").value = (b.healthcheck && b.healthcheck.kind) || "tcp";
-  const route = routes.find(r => r.node_id === nodeId) || routes[0];
   if (route && route.sni_entry_id) $("dSniSelect").value = route.sni_entry_id;
   $("btnDBiz").textContent = "保存业务修改";
   $("btnCancelBizEdit").style.display = "";
