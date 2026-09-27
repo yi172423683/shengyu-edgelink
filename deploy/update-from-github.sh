@@ -14,9 +14,11 @@ BACKUP="$(mktemp -d /var/tmp/shengyu-backup.XXXXXX)"
 BIN="$APP_ROOT/bin/shengyu-edgelink"
 OLD_BIN="/usr/local/bin/shengyu-edgelink"
 UNIT="/etc/systemd/system/shengyu-edgelink-server.service"
+HAPROXY_UNIT="/etc/systemd/system/shengyu-edgelink-haproxy.service"
 HEALTH_URL="${SHENGYU_HEALTH_URL:-http://127.0.0.1:8081/api/health}"
 LISTEN=""
 ROLLED_BACK=0
+HAPROXY_RESTART_NEEDED=0
 
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
@@ -29,7 +31,9 @@ rollback() {
   if [ -f "$BACKUP/binary" ]; then install -m 0755 "$BACKUP/binary" "$BIN"; fi
   if [ -f "$BACKUP/old-binary" ]; then install -m 0755 "$BACKUP/old-binary" "$OLD_BIN"; fi
   if [ -f "$BACKUP/unit" ]; then install -m 0644 "$BACKUP/unit" "$UNIT"; fi
+  if [ -f "$BACKUP/haproxy-unit" ]; then install -m 0644 "$BACKUP/haproxy-unit" "$HAPROXY_UNIT"; fi
   systemctl daemon-reload || true
+  systemctl restart shengyu-edgelink-haproxy || true
   systemctl restart shengyu-edgelink-server || true
 }
 on_error() { rollback; echo "[失败] 更新未完成，现有数据和转发配置已保留。" >&2; exit 1; }
@@ -66,6 +70,12 @@ if systemctl cat shengyu-edgelink-server.service >/dev/null 2>&1; then
 fi
 LISTEN="${LISTEN:-${SHENGYU_LISTEN:-127.0.0.1:8081}}"
 
+# /opt 迁移的第一次更新必须重启一次 HAProxy：旧 master 仍会沿用启动时的旧 -f 路径，
+# 仅发送 reload 不会读取新配置。迁移完成后进程命令行变为 /opt，后续更新继续平滑 reload。
+if ps -eo args= | grep -Eq '[h]aproxy.*-f[[:space:]]+/etc/shengyu-edgelink/haproxy/'; then
+  HAPROXY_RESTART_NEEDED=1
+fi
+
 echo "[1/7] 拉取 GitHub：$BRANCH"
 rm -rf "$WORK" "$SOURCE_ROOT"
 mkdir -p "$WORK"
@@ -94,6 +104,7 @@ echo "[4/7] 备份当前管理程序"
 if [ -x "$BIN" ]; then cp -p "$BIN" "$BACKUP/binary"; fi
 if [ -x "$OLD_BIN" ]; then cp -p "$OLD_BIN" "$BACKUP/old-binary"; fi
 if [ -f "$UNIT" ]; then cp -p "$UNIT" "$BACKUP/unit"; fi
+if [ -f "$HAPROXY_UNIT" ]; then cp -p "$HAPROXY_UNIT" "$BACKUP/haproxy-unit"; fi
 
 echo "[5/7] 安装新版（监听地址保持为 $LISTEN）"
 INSTALL_INPUT=/dev/null
@@ -102,6 +113,13 @@ if [ -t 1 ] && [ -r /dev/tty ]; then
   echo "      将打开交互式安装向导（HTTPS / 域名 / 证书选项）"
 fi
 SHENGYU_ROOT="$APP_ROOT" bash "$WORK/package/install.sh" --listen "$LISTEN" < "$INSTALL_INPUT"
+
+if [ "$HAPROXY_RESTART_NEEDED" -eq 1 ]; then
+  echo "[迁移] 检测到 HAProxy 仍使用旧配置路径，本次进行一次重启以切换到 /opt（后续更新不再重启）"
+  systemctl daemon-reload
+  systemctl restart shengyu-edgelink-haproxy
+  sleep 2
+fi
 
 echo "[6/7] 重启管理服务"
 systemctl restart shengyu-edgelink-server
