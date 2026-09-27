@@ -594,6 +594,55 @@ type ConnRowOut struct {
 	RawLine        string   `json:"raw_line"`
 }
 
+// TrafficBucket 是连接日志按自然日汇总后的流量统计。
+// 汇总直接在小时分片内执行，不把整月日志全部加载到管理面内存。
+type TrafficBucket struct {
+	Day         string `json:"day"`
+	Connections int64  `json:"connections"`
+	BytesUp     int64  `json:"bytes_up"`
+	BytesDown   int64  `json:"bytes_down"`
+}
+
+// TrafficSummary 汇总指定时间段内的连接数和上下行流量，最多建议查询 31 天。
+func (s *Store) TrafficSummary(ctx context.Context, q Query) ([]TrafficBucket, error) {
+	if q.From.IsZero() || q.To.IsZero() || q.To.Before(q.From) {
+		return nil, fmt.Errorf("流量统计时间范围无效")
+	}
+	parts := s.PartitionsBetween(KindConn, q.From, q.To)
+	byDay := map[string]*TrafficBucket{}
+	for _, p := range parts {
+		path := p.Path
+		var cleanup func()
+		if p.Compressed {
+			tmp, err := materializeCompressed(p.Path)
+			if err != nil { continue }
+			path, cleanup = tmp, func() { _ = os.Remove(tmp) }
+		}
+		d, release, _, err := s.acquireReader(path)
+		if err != nil { if cleanup != nil { cleanup() }; continue }
+		if ok, _ := hasConnTable(d); !ok {
+			release(); if cleanup != nil { cleanup() }; continue
+		}
+		where, args := buildWhere(q)
+		rows, err := d.QueryContext(ctx, "SELECT substr(end_ts,1,10), COUNT(*), COALESCE(SUM(bytes_up),0), COALESCE(SUM(bytes_down),0) FROM conn_log "+where+" GROUP BY substr(end_ts,1,10)", args...)
+		if err == nil {
+			for rows.Next() {
+				var day string; var n, up, down int64
+				if err := rows.Scan(&day, &n, &up, &down); err != nil { _ = rows.Close(); release(); if cleanup != nil { cleanup() }; return nil, err }
+				b := byDay[day]; if b == nil { b = &TrafficBucket{Day: day}; byDay[day] = b }
+				b.Connections += n; b.BytesUp += up; b.BytesDown += down
+			}
+			_ = rows.Close()
+		}
+		release(); if cleanup != nil { cleanup() }
+		if err != nil { return nil, fmt.Errorf("logstore: 汇总分片失败: %w", err) }
+	}
+	out := make([]TrafficBucket, 0, len(byDay))
+	for _, b := range byDay { out = append(out, *b) }
+	sort.Slice(out, func(i, j int) bool { return out[i].Day < out[j].Day })
+	return out, nil
+}
+
 // connCols 是查询用的列清单，顺序必须与 queryAcross 的 Scan 一一对应。
 const connCols = `id, end_ts, accept_ts, node_id, business_id, route_id, config_version, conn_id,
         client_ip, client_port, entry_addr, entry_port, sni, be_name, srv_name,

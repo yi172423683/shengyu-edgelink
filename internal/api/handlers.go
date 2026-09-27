@@ -1304,8 +1304,8 @@ func (s *Server) upsertRoutes(b *model.Business, req businessReq) error {
 func (s *Server) validateBusinessRequest(b *model.Business, req businessReq) *validationError {
 	res := validate.Business(*b, b.Domains, s.validationOptions())
 
-	// 域名跨业务占用检测：同一个域名若被两条业务声明，SNI 路由会出现"最后一条赢"，
-	// 而客户看到的是"我的域名偶尔跑到别人家站点"。必须在接入时就挡住。
+	// 域名跨业务占用检测：同一节点、同一 SNI 入口上同一个域名若被两条业务声明，
+	// SNI 路由会出现"最后一条赢"。不同入口端口可以复用同一域名。
 	if len(b.Domains) > 0 {
 		owner := map[string]string{}
 		all, _, err := s.Store.ListBusinesses(store.BusinessFilter{Limit: 500})
@@ -1314,12 +1314,21 @@ func (s *Server) validateBusinessRequest(b *model.Business, req businessReq) *va
 				if other.ID == b.ID {
 					continue
 				}
-				for _, d := range other.Domains {
-					owner[strings.ToLower(d)] = other.ID
+				routes, routeErr := s.Store.ListRoutesByBusiness(other.ID)
+				if routeErr != nil {
+					continue
+				}
+				for _, route := range routes {
+					if route.NodeID != req.PrimaryNodeID || route.Mode != model.ModeSNITLS || route.SNIEntryID == "" {
+						continue
+					}
+					for _, d := range other.Domains {
+						owner[route.SNIEntryID+"\x00"+strings.ToLower(d)] = other.ID
+					}
 				}
 			}
 		}
-		res.Merge(validate.DomainsAcrossBusinesses(b.ID, b.Domains, owner))
+		res.Merge(validate.DomainsAcrossBusinessesForEntry(b.ID, req.SNIEntryID, b.Domains, owner))
 	}
 
 	if !res.OK() {
@@ -1384,6 +1393,27 @@ func (s *Server) handleQueryLogs(w http.ResponseWriter, r *http.Request) {
 		"offset":  q.Offset,
 		"hint": "查不到记录**不能**判定客户端没有发起请求：可能是时间范围不对、" +
 			"日志尚未上报，或该连接确实未到达本平台。请结合「诊断」页的判断一起看。",
+	})
+}
+
+func (s *Server) handleTrafficSummary(w http.ResponseWriter, r *http.Request) {
+	days := 30
+	if raw := r.URL.Query().Get("days"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil { days = n }
+	}
+	if days < 1 { days = 1 }
+	if days > 31 { days = 31 }
+	now := s.now()
+	q := logstore.Query{From: now.Add(-time.Duration(days) * 24 * time.Hour), To: now,
+		BusinessID: r.URL.Query().Get("business_id"), NodeID: r.URL.Query().Get("node_id"),
+		SNI: r.URL.Query().Get("sni")}
+	buckets, err := s.Logs.TrafficSummary(r.Context(), q)
+	if err != nil { writeErr(w, http.StatusBadRequest, err.Error(), "traffic_summary_failed", err.Error()); return }
+	var total logstore.TrafficBucket
+	for _, b := range buckets { total.Connections += b.Connections; total.BytesUp += b.BytesUp; total.BytesDown += b.BytesDown }
+	writeJSON(w, http.StatusOK, map[string]any{
+		"from": q.From, "to": q.To, "days": days, "total": total, "daily": buckets,
+		"geo": map[string]any{"available": false, "note": "当前版本保留客户端 IP；地区需要配置 GeoIP 数据库后启用。未知地址会保留为未知。"},
 	})
 }
 

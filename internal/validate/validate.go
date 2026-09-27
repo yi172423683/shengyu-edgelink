@@ -530,7 +530,8 @@ func State(st model.DesiredState, opt Options) Result {
 		taken[k] = owner{"sni_entry", e.ID}
 	}
 
-	// 2) 域名全局唯一（同一节点内不允许同一域名出现在两条业务里）
+	// 2) 域名按入口唯一：同一节点、同一 SNI 入口上的同一域名不能重复。
+	// 同一个域名可以挂在不同入口端口，例如 443 与 8444。
 	domainOwner := map[string]string{}
 	handleOwner := map[string]string{}
 
@@ -589,12 +590,13 @@ func State(st model.DesiredState, opt Options) Result {
 					r.errf(CodeDomainSyntax, prefix+".domains", "%s", err.Msg)
 					continue
 				}
-				if prev, ok := domainOwner[d]; ok {
+				ownerKey := rt.SNIEntryID + "\x00" + d
+				if prev, ok := domainOwner[ownerKey]; ok {
 					r.errf(CodeDomainDuplicate, prefix+".domains",
-						"域名 %s 已被 %s 使用：同一节点上同一域名只能属于一条业务", d, prev)
+						"域名 %s 已被 %s 使用：同一 SNI 入口上同一域名只能属于一条业务", d, prev)
 					continue
 				}
-				domainOwner[d] = rt.BusinessID
+				domainOwner[ownerKey] = rt.BusinessID
 			}
 
 		case model.ModeTCPPort:
@@ -678,6 +680,22 @@ func DomainsAcrossBusinesses(businessID string, domains []string, ownerOf map[st
 				"域名 %s 已被业务 %s 占用；同一域名不能同时挂两条业务", d, owner)
 			r.hint(CodeDomainDuplicate,
 				"如果确实是同一业务的 A/B 双节点，请不要新建业务，而是给现有业务添加备用节点。")
+		}
+	}
+	return r
+}
+
+// DomainsAcrossBusinessesForEntry 检查同一节点上的 SNI 入口域名冲突。
+// ownerOf 的 key 为 sniEntryID + NUL + domain。
+func DomainsAcrossBusinessesForEntry(businessID, sniEntryID string, domains []string, ownerOf map[string]string) Result {
+	var r Result
+	for _, d := range domains {
+		key := sniEntryID + "\x00" + d
+		if owner, ok := ownerOf[key]; ok && owner != businessID {
+			r.errf(CodeDomainDuplicate, "domains",
+				"域名 %s 已被业务 %s 占用：同一入口上同一域名不能同时挂两条业务", d, owner)
+			r.hint(CodeDomainDuplicate,
+				"如果要让同一域名使用多个源站端口，请为每个端口创建不同的数据面入口（例如 443、8444）。")
 		}
 	}
 	return r

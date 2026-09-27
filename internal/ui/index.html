@@ -62,6 +62,9 @@
   details.advanced > summary { padding:14px 18px; color:#424242; background:#fff; border:1px solid var(--bd); border-radius:8px; cursor:pointer; font-weight:600; }
   details.advanced[open] > summary { border-radius:8px 8px 0 0; border-bottom-color:#ededed; }
   details.advanced > .card { margin-bottom:0; border-radius:0 0 8px 8px; border-top:0; }
+  .menu { position:sticky; top:0; z-index:2; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; padding:8px; background:rgba(243,243,243,.94); border-bottom:1px solid var(--bd); }
+  .menu button { min-height:32px; padding:5px 12px; color:#424242; background:#fff; border:1px solid #d6d6d6; }
+  .menu button.active, .menu button:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
   @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } }
 </style>
 </head>
@@ -219,7 +222,16 @@
     <!-- ========== 正常总览 ========== -->
     <div id="dash" style="display:none">
 
-      <details class="advanced">
+      <nav class="menu" aria-label="管理菜单">
+        <button data-menu-target="businessCard" class="active">转发规则</button>
+        <button data-menu-target="logsCard">连接日志</button>
+        <button data-menu-target="trafficCard">流量监控</button>
+        <button data-menu-target="publishCard">发布与回滚</button>
+        <button data-menu-target="settingsDetails">节点与设置</button>
+        <button data-menu-target="userAdminCard">账号管理</button>
+      </nav>
+
+      <details class="advanced" id="settingsDetails">
         <summary>系统设置与入口端口</summary>
       <div class="card">
         <h2>管理端口与健康检查</h2>
@@ -263,7 +275,7 @@
         <div class="msg" id="passwordMsg"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="logsCard">
         <h2>日志与诊断</h2>
         <div class="desc">发布后的连接记录和管理操作记录会显示在这里。连接日志由 HAProxy 会话结束后上报，所以刚建立的连接可能稍后才出现。</div>
         <div class="row"><button id="btnRefreshLogs">刷新日志</button><button id="btnDiagnose" class="ghost">运行诊断</button></div>
@@ -271,6 +283,14 @@
         <div id="connLogTable"></div>
         <div id="auditLogTable"></div>
         <div id="diagnoseBox"></div>
+      </div>
+
+      <div class="card" id="trafficCard">
+        <h2>流量监控</h2>
+        <div class="desc">实时指标来自数据面统计；月度统计来自已结束连接日志。客户端地区需要配置 GeoIP 数据库，未识别地址会显示未知。</div>
+        <div class="row"><button id="btnRefreshTraffic">刷新流量</button><span class="hint" id="trafficAt"></span></div>
+        <div class="grid" id="trafficKPI"></div>
+        <div id="trafficTable"></div>
       </div>
 
       <div class="card" id="userAdminCard" style="display:none">
@@ -285,12 +305,12 @@
         <div id="userTable"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="businessCard">
         <h2>业务（域名 / 源站 / 健康检查）</h2>
-        <div class="desc">继续添加：域名、源站地址（IPv4/IPv6/域名）、源站端口、健康检查方式。</div>
+        <div class="desc">继续添加：域名、源站地址、源站端口和健康检查方式。同一域名可以分别挂在不同入口端口；同一个入口上的同一域名只能有一条规则。</div>
         <div class="grid">
           <div><label>业务名称</label><input id="dBizName" placeholder="例如：客户B-接口"></div>
-          <div><label>域名</label><input id="dDomains" placeholder="b.example.com"></div>
+          <div><label>域名</label><input id="dDomains" placeholder="b.example.com"><div class="hint">例如同一域名可分别配置到 443 和 8444 两个入口。</div></div>
           <div><label>源站地址</label><input id="dOriginHost" placeholder="10.0.0.6"></div>
           <div><label>源站端口</label><input id="dOriginPort" type="number" value="443" min="1" max="65535"></div>
           <div>
@@ -309,7 +329,7 @@
         <div id="dBizTable"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="publishCard">
         <h2>发布</h2>
         <div class="desc">配置改动需发布后才生效。任一阶段失败都会自动回滚。</div>
         <ol class="phase" id="dPhaseList"></ol>
@@ -330,6 +350,7 @@
 const $ = id => document.getElementById(id);
 let csrf = "", nodeId = "", customerId = "";
 let meta = null, currentUser = null, wizardStep = 1, sniList = [], bizList = [], editingBizId = "";
+let trafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0;
 
 // 发布阶段：顺序与服务端真实执行顺序一致。
 // 界面只是把服务端返回的 phase 映射成"走到哪一步"，不臆造状态。
@@ -473,6 +494,9 @@ async function boot() {
     await refreshDash();
     await loadUsers();
     await loadLogs();
+    await loadTraffic(true);
+    if (trafficTimer) clearInterval(trafficTimer);
+    trafficTimer = setInterval(() => loadTraffic(false), 5000);
   } else {
     $("dash").style.display = "none";
     $("wizard").style.display = "";
@@ -529,13 +553,58 @@ async function loadLogs() {
   $("auditLogTable").innerHTML = ah + "</table>";
 }
 
+function bytesText(n) {
+  n = Number(n || 0);
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0; while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(i ? 2 : 0) + " " + units[i];
+}
+
+async function loadTraffic(forceHistory) {
+  if (!nodeId) return;
+  const stats = await api("GET", "/api/nodes/" + nodeId + "/stats");
+  const st = (stats.data && stats.data.stats) || {};
+  const now = Date.now();
+  let rate = "-";
+  if (previousTraffic && st.bytes_in != null && st.bytes_out != null) {
+    const seconds = Math.max(1, (now - previousTraffic.at) / 1000);
+    rate = bytesText((Number(st.bytes_in) - previousTraffic.in) / seconds) + "/s ↓  " + bytesText((Number(st.bytes_out) - previousTraffic.out) / seconds) + "/s ↑";
+  }
+  previousTraffic = { at: now, in: Number(st.bytes_in || 0), out: Number(st.bytes_out || 0) };
+  $("trafficAt").textContent = "实时刷新 · " + new Date().toLocaleTimeString() + " · 速率 " + rate;
+  $("trafficKPI").innerHTML = [
+    ["在线连接", st.active_conns || 0], ["累计连接", st.total_conns || 0],
+    ["累计下行", bytesText(st.bytes_out)], ["累计上行", bytesText(st.bytes_in)],
+    ["源站可用", st.backend_up || 0], ["源站异常", st.backend_down || 0]
+  ].map(x => "<div class='kv'><div><b>" + esc(x[0]) + "</b>" + esc(x[1]) + "</div></div>").join("");
+  if (!forceHistory && Date.now() - lastTrafficSummaryAt < 60000) return;
+  lastTrafficSummaryAt = Date.now();
+  const summary = await api("GET", "/api/traffic/summary?days=30&node_id=" + encodeURIComponent(nodeId));
+  const daily = (summary.data && summary.data.daily) || [];
+  let h = "<h3 style='font-size:14px;margin:16px 0 4px'>近 30 天</h3><table><tr><th>日期</th><th>连接数</th><th>上行</th><th>下行</th></tr>";
+  for (const d of daily) h += "<tr><td>" + esc(d.day) + "</td><td>" + esc(d.connections) + "</td><td>" + esc(bytesText(d.bytes_up)) + "</td><td>" + esc(bytesText(d.bytes_down)) + "</td></tr>";
+  $("trafficTable").innerHTML = h + "</table>" + (daily.length ? "" : "<div class='hint'>近 30 天还没有已结束连接日志。</div>");
+}
+
 $("btnRefreshLogs").onclick = loadLogs;
+$("btnRefreshTraffic").onclick = () => loadTraffic(true);
 $("btnDiagnose").onclick = async () => {
   const res = await api("GET", "/api/diagnose?limit=50");
   if (res.status !== 200) { show("logsMsg", errText(res, "诊断失败"), "err"); return; }
   const findings = (res.data && (res.data.findings || res.data.items)) || [];
   $("diagnoseBox").innerHTML = "<h3 style='font-size:14px;margin:16px 0 4px'>诊断结果</h3>" + (findings.length ? findings.map(x => "<div class='banner " + (x.severity === "error" ? "" : "blue") + "'><b>" + esc(x.category || "结论") + "</b>：" + esc((x.facts || []).join("；") || x.summary || "无异常说明") + "</div>").join("") : "<div class='hint'>没有返回诊断结论。</div>");
 };
+
+document.querySelectorAll("[data-menu-target]").forEach(button => {
+  button.onclick = () => {
+    const target = $(button.dataset.menuTarget);
+    if (!target) return;
+    if (target.tagName === "DETAILS") target.open = true;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.querySelectorAll("[data-menu-target]").forEach(b => b.classList.remove("active"));
+    button.classList.add("active");
+  };
+});
 
 function gotoStep(n) {
   wizardStep = n;
