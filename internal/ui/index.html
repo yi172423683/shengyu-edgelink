@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>盛愈边缘网关</title>
 <style>
-  :root { color-scheme:light; --bd:#e5e5e5; --muted:#616161; --bg:#f3f3f3; --surface:#fff; --accent:#1763c6; --err:#b42318; --ok:#107c10; --warn:#8a5700; }
+  :root { color-scheme:light; --bd:#e5e7eb; --muted:#64748b; --bg:#f5f7fb; --surface:#fff; --accent:#2563eb; --accent-soft:#eaf2ff; --nav:#1f334d; --nav-muted:#b9c7d9; --err:#b42318; --ok:#107c10; --warn:#8a5700; }
   * { box-sizing:border-box; }
   body { margin:0; color:#1a1a1a; background:var(--bg); font:14px/1.5 "Segoe UI Variable","Segoe UI","Microsoft YaHei",sans-serif; }
-  header { min-height:62px; padding:12px max(24px,calc((100vw - 1180px)/2)); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:rgba(255,255,255,.88); border-bottom:1px solid #e5e5e5; }
+  header { min-height:62px; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:#fff; border-bottom:1px solid var(--bd); }
   header h1 { margin:0; font-size:18px; font-weight:600; }
   header .sub { color:var(--muted); font-size:12px; }
-  main { width:100%; max-width:none; margin:0; padding:20px 24px 32px; }
+  main { width:100%; max-width:none; margin:0; padding:20px 28px 40px; }
   #loginCard { max-width:520px; margin:8vh auto 0; padding:28px; }
   #loginCard h2 { font-size:22px; margin-bottom:8px; }
-  .card { margin-bottom:16px; padding:20px; background:var(--surface); border:1px solid var(--bd); border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.035); }
+  .card { margin-bottom:16px; padding:22px; background:var(--surface); border:1px solid var(--bd); border-radius:10px; box-shadow:0 2px 7px rgba(30,55,90,.045); }
   .card h2 { margin:0 0 6px; font-size:16px; font-weight:600; }
   .card .desc { margin-bottom:14px; color:var(--muted); font-size:12px; white-space:pre-wrap; }
   .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
@@ -62,15 +62,17 @@
   details.advanced > summary { padding:14px 18px; color:#424242; background:#fff; border:1px solid var(--bd); border-radius:8px; cursor:pointer; font-weight:600; }
   details.advanced[open] > summary { border-radius:8px 8px 0 0; border-bottom-color:#ededed; }
   details.advanced > .card { margin-bottom:0; border-radius:0 0 8px 8px; border-top:0; }
-  .menu { position:sticky; top:0; z-index:2; display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; padding:8px; background:rgba(243,243,243,.94); border-bottom:1px solid var(--bd); }
-  .menu button { min-height:32px; padding:5px 12px; color:#424242; background:#fff; border:1px solid #d6d6d6; }
-  .menu button.active, .menu button:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .menu { position:sticky; top:12px; z-index:2; display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px; padding:14px 10px; background:var(--nav); border:0; border-radius:10px; }
+  .menu button { min-height:38px; padding:7px 13px; color:var(--nav-muted); text-align:left; background:transparent; border:1px solid transparent; border-radius:6px; }
+  .menu button.active, .menu button:hover { color:#fff; background:#2d65a4; border-color:#3c78bb; }
+  .menuTitle { padding:3px 12px 13px; color:#fff; font-size:15px; font-weight:600; }
+  .sectionTitle { margin:0 0 16px; font-size:20px; font-weight:650; }
   .charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:14px; }
   .chartPanel { min-width:0; padding:12px; border:1px solid #ededed; background:#fafafa; }
   .chartPanel h3 { margin:0 0 8px; font-size:13px; font-weight:600; }
   canvas.chart { display:block; width:100%; height:220px; background:#fff; border:1px solid #ededed; }
-  @media (min-width:900px) { #dash.ready { display:grid; grid-template-columns:190px minmax(0,1fr); gap:18px; align-items:start; } #dash > .menu { grid-column:1; grid-row:1 / span 30; position:sticky; top:12px; flex-direction:column; min-height:calc(100vh - 100px); margin:0; padding:12px 8px; background:#263b55; border:0; border-radius:6px; } #dash > .menu button { width:100%; color:#dbe7f5; text-align:left; background:transparent; border-color:transparent; } #dash > .menu button.active, #dash > .menu button:hover { color:#fff; background:#1763c6; } #dash > .card, #dash > details { grid-column:2; } }
-  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } .charts { grid-template-columns:1fr; } }
+  @media (min-width:900px) { #dash.ready { display:grid; grid-template-columns:210px minmax(0,1fr); gap:22px; align-items:start; } #dash > .menu { grid-column:1; grid-row:1 / span 30; position:sticky; top:12px; flex-direction:column; min-height:calc(100vh - 100px); margin:0; padding:14px 10px; } #dash > .menu button { width:100%; } #dash > .card, #dash > details { grid-column:2; } }
+  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } .charts { grid-template-columns:1fr; } .menu { position:static; overflow-x:auto; flex-wrap:nowrap; } .menu button { white-space:nowrap; } }
 </style>
 </head>
 <body>
@@ -228,17 +230,18 @@
     <div id="dash" style="display:none">
 
       <nav class="menu" aria-label="管理菜单">
-        <button data-menu-target="businessCard" class="active">转发规则</button>
-        <button data-menu-target="logsCard">连接日志</button>
-        <button data-menu-target="trafficCard">流量监控</button>
-        <button data-menu-target="publishCard">发布与回滚</button>
-        <button data-menu-target="settingsDetails">节点与设置</button>
-        <button data-menu-target="userAdminCard">账号管理</button>
+        <div class="menuTitle">盛愈边缘网关</div>
+        <button data-menu-target="businessCard" data-section="rules" class="active">转发规则</button>
+        <button data-menu-target="logsCard" data-section="logs">连接日志</button>
+        <button data-menu-target="trafficCard" data-section="traffic">流量监控</button>
+        <button data-menu-target="publishCard" data-section="publish">发布与回滚</button>
+        <button data-menu-target="settingsDetails" data-section="settings">节点与设置</button>
+        <button data-menu-target="accountPanel" data-section="account">账号管理</button>
       </nav>
 
-      <details class="advanced" id="settingsDetails">
+      <details class="advanced" id="settingsDetails" data-section="settings">
         <summary>系统设置与入口端口</summary>
-      <div class="card">
+      <div class="card" id="securityCard" data-section="account">
         <h2>管理端口与健康检查</h2>
         <div class="desc">管理端口只用于打开后台，数据转发不经过这里；健康检查接口供监控判断服务是否存活。</div>
         <div class="grid">
@@ -280,7 +283,7 @@
         <div class="msg" id="passwordMsg"></div>
       </div>
 
-      <div class="card" id="logsCard">
+      <div class="card" id="logsCard" data-section="logs">
         <h2>日志与诊断</h2>
         <div class="desc">发布后的连接记录和管理操作记录会显示在这里。连接日志由 HAProxy 会话结束后上报，所以刚建立的连接可能稍后才出现。</div>
         <div class="row"><button id="btnRefreshLogs">刷新日志</button><button id="btnDiagnose" class="ghost">运行诊断</button></div>
@@ -290,7 +293,7 @@
         <div id="diagnoseBox"></div>
       </div>
 
-      <div class="card" id="trafficCard">
+      <div class="card" id="trafficCard" data-section="traffic">
         <h2>流量监控</h2>
         <div class="desc">实时指标来自数据面统计；月度统计来自已结束连接日志。客户端地区需要配置 GeoIP 数据库，未识别地址会显示未知。</div>
         <div class="row"><button id="btnRefreshTraffic">刷新流量</button><span class="hint" id="trafficAt"></span></div>
@@ -302,7 +305,7 @@
         <div id="trafficTable"></div>
       </div>
 
-      <div class="card" id="userAdminCard" style="display:none">
+      <div class="card" id="userAdminCard" data-section="account" style="display:none">
         <h2>账号管理</h2>
         <div class="desc">管理员可以创建自定义用户名并设置初始口令；当前版本新账号统一为管理员，重置口令会立即让该账号已有会话失效。</div>
         <div class="grid">
@@ -314,7 +317,7 @@
         <div id="userTable"></div>
       </div>
 
-      <div class="card" id="businessCard">
+      <div class="card" id="businessCard" data-section="rules">
         <h2>业务（域名 / 源站 / 健康检查）</h2>
         <div class="desc">“本站入口”是客户端连接的端口；“源站端口”是平台连接源站的端口。同一域名要转发到多个源站端口，必须分别建立本站入口。</div>
         <div class="grid">
@@ -338,7 +341,7 @@
         <div id="dBizTable"></div>
       </div>
 
-      <div class="card" id="publishCard">
+      <div class="card" id="publishCard" data-section="publish">
         <h2>发布</h2>
         <div class="desc">配置改动需发布后才生效。任一阶段失败都会自动回滚。</div>
         <ol class="phase" id="dPhaseList"></ol>
@@ -507,6 +510,8 @@ async function boot() {
     await loadTraffic(true);
     if (trafficTimer) clearInterval(trafficTimer);
     trafficTimer = setInterval(() => loadTraffic(false), 5000);
+    const firstMenu = document.querySelector("[data-menu-target='businessCard']");
+    if (firstMenu) showSection("rules", firstMenu);
   } else {
     $("dash").style.display = "none";
     $("dash").classList.remove("ready");
@@ -648,15 +653,22 @@ $("btnDiagnose").onclick = async () => {
   $("diagnoseBox").innerHTML = "<h3 style='font-size:14px;margin:16px 0 4px'>诊断结果</h3>" + (findings.length ? findings.map(x => "<div class='banner " + (x.severity === "error" ? "" : "blue") + "'><b>" + esc(x.category || "结论") + "</b>：" + esc((x.facts || []).join("；") || x.summary || "无异常说明") + "</div>").join("") : "<div class='hint'>没有返回诊断结论。</div>");
 };
 
+function showSection(section, button) {
+  const panels = document.querySelectorAll("#dash > [data-section]");
+  panels.forEach(panel => {
+    const visible = panel.dataset.section === section;
+    panel.style.display = visible ? "" : "none";
+    if (visible && panel.tagName === "DETAILS") panel.open = true;
+  });
+  if (section === "account" && currentUser && currentUser.role === "admin") $("userAdminCard").style.display = "";
+  const target = $(button.dataset.menuTarget) || document.querySelector("#dash > [data-section='" + section + "']");
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.querySelectorAll("[data-menu-target]").forEach(b => b.classList.remove("active"));
+  button.classList.add("active");
+}
+
 document.querySelectorAll("[data-menu-target]").forEach(button => {
-  button.onclick = () => {
-    const target = $(button.dataset.menuTarget);
-    if (!target) return;
-    if (target.tagName === "DETAILS") target.open = true;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    document.querySelectorAll("[data-menu-target]").forEach(b => b.classList.remove("active"));
-    button.classList.add("active");
-  };
+  button.onclick = () => showSection(button.dataset.section, button);
 });
 
 function gotoStep(n) {
