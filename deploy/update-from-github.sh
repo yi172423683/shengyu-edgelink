@@ -96,7 +96,12 @@ if [ -x "$OLD_BIN" ]; then cp -p "$OLD_BIN" "$BACKUP/old-binary"; fi
 if [ -f "$UNIT" ]; then cp -p "$UNIT" "$BACKUP/unit"; fi
 
 echo "[5/7] 安装新版（监听地址保持为 $LISTEN）"
-SHENGYU_ROOT="$APP_ROOT" bash "$WORK/package/install.sh" --listen "$LISTEN"
+INSTALL_INPUT=/dev/null
+if [ -t 1 ] && [ -r /dev/tty ]; then
+  INSTALL_INPUT=/dev/tty
+  echo "      将打开交互式安装向导（HTTPS / 域名 / 证书选项）"
+fi
+SHENGYU_ROOT="$APP_ROOT" bash "$WORK/package/install.sh" --listen "$LISTEN" < "$INSTALL_INPUT"
 
 echo "[6/7] 重启管理服务"
 systemctl restart shengyu-edgelink-server
