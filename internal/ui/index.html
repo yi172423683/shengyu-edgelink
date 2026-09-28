@@ -148,6 +148,59 @@
     #dash > .card, #dash > details { height:auto; max-height:none; overflow:visible; padding:22px; }
   }
 </style>
+<style>
+  /* Final product visual system. Keep the functional DOM and IDs unchanged. */
+  :root { --bg:#f4f6f8; --surface:#fff; --ink:#172235; --muted:#68778a; --line:#dfe5ec; --accent:#2563a6; --accent-dark:#1d4f83; --nav:#17283d; }
+  body { color:var(--ink); background:var(--bg); font-family:"Segoe UI","Microsoft YaHei",Arial,sans-serif; }
+  header { background:#fff; border-bottom:1px solid var(--line); box-shadow:none; }
+  header h1 { color:var(--ink); font-size:16px; font-weight:650; }
+  header .sub { color:#7a8797; }
+  main { background:var(--bg); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; box-shadow:0 3px 12px rgba(30,48,70,.045); }
+  .card h2 { color:var(--ink); font-size:17px; letter-spacing:.01em; }
+  .card .desc { color:#718096; }
+  button { background:var(--accent); border-radius:6px; box-shadow:none; }
+  button:hover { background:var(--accent-dark); }
+  button.ghost { color:#35465c; background:#fff; border-color:#cbd5e1; }
+  button.ghost:hover { color:var(--ink); background:#f3f6fa; }
+  input, select { color:var(--ink); background:#fff; border-color:#cbd5e1; border-radius:6px; }
+  input::placeholder { color:#9aa7b6; }
+  th { color:#5b6b7d; background:#f6f8fa; }
+  .menu { background:var(--nav); box-shadow:0 6px 18px rgba(23,40,61,.12); }
+  #dash > .menu { background:var(--nav); }
+  #dash > .menu button { color:#aebdce; }
+  #dash > .menu button::before { width:5px; height:5px; background:#aebdce; }
+  #dash > .menu button.active, #dash > .menu button:hover { color:#fff; background:#285a8d; border-color:#356fa6; }
+  #dash > .menu button.active::before, #dash > .menu button:hover::before { background:#fff; }
+  .menuTitle { color:#fff; letter-spacing:.02em; }
+  .welcomePanel { color:#fff; background:#20354f; box-shadow:none; }
+  .welcomePanel h2 { color:#fff; }
+  .overviewStat { background:#294764; border-color:#3a5b78; }
+  .loginShell { max-width:1000px; padding:36px 24px; gap:0; background:#fff; border:1px solid #dce3eb; border-radius:12px; box-shadow:0 18px 45px rgba(23,40,61,.1); overflow:hidden; }
+  .loginBrand { min-height:480px; padding:46px; display:flex; flex-direction:column; justify-content:center; background:#20354f; border-radius:0; box-shadow:none; }
+  .brandMark { width:48px; height:48px; margin-bottom:28px; color:#20354f; background:#fff; border-radius:9px; font-size:14px; }
+  .loginBrand h2 { color:#fff; font-size:27px; letter-spacing:.01em; }
+  .loginBrand p { max-width:330px; color:#d4e0ed; font-size:14px; }
+  .loginFeatures { gap:12px; margin-top:30px; color:#dbe7f2; }
+  .loginFeatures span::before { background:#8fb9df; }
+  .loginForm { min-height:480px; display:flex; flex-direction:column; justify-content:center; padding:58px 64px; border:0; border-radius:0; box-shadow:none; }
+  .loginForm h2 { color:var(--ink); font-size:22px; }
+  .loginForm .desc { max-width:340px; margin-bottom:26px; color:#738196; }
+  .loginForm label { color:#43546a; font-size:12px; }
+  .loginForm .row { margin-top:24px; }
+  .loginForm .row button { min-height:42px; font-size:14px; }
+  .loginForm .msg { margin-top:16px; }
+  .banner.blue { color:#46566a; background:#f4f8fc; border-color:#d7e4f0; }
+  .charts .chartPanel { background:#fff; border-color:var(--line); }
+  .hint { color:#7b8998; }
+  @media (max-width:760px) {
+    .loginShell { margin:18px 14px; padding:0; border-radius:10px; }
+    .loginBrand { min-height:260px; padding:30px; }
+    .loginBrand h2 { font-size:23px; }
+    .loginFeatures { display:none; }
+    .loginForm { min-height:390px; padding:34px 28px; }
+  }
+</style>
 </head>
 <body>
 <header>
@@ -165,7 +218,7 @@
       <div class="brandMark">SG</div>
       <h2>盛愈边缘网关</h2>
       <p>统一管理域名转发、入口端口和运行状态，让边缘节点的每一次连接都清晰可见。</p>
-      <div class="loginFeatures"><span>TLS SNI 透传与多入口管理</span><span>连接日志与带宽趋势</span><span>发布前检查，失败自动回滚</span></div>
+      <div class="loginFeatures"><span>统一管理域名和服务入口</span><span>清晰查看连接与带宽趋势</span><span>配置变更有记录，可随时回退</span></div>
     </section>
     <section class="card loginForm">
       <h2>登录管理台</h2>
