@@ -94,6 +94,60 @@
   @media (max-width:760px) { .loginShell { grid-template-columns:1fr; margin-top:4vh; } .loginBrand { padding:26px; } }
   @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } .charts { grid-template-columns:1fr; } .menu { position:static; overflow-x:auto; flex-wrap:nowrap; } .menu button { white-space:nowrap; } .overviewStats { grid-template-columns:1fr; } }
 </style>
+<style>
+  /* Fixed application shell: only the active workspace scrolls. */
+  html, body { height:100%; overflow:hidden; }
+  body { color:#172033; background:#edf2f7; }
+  header { height:64px; min-height:64px; padding:0 24px; background:#fff; border-bottom:1px solid #dce3ec; box-shadow:0 1px 5px rgba(23,32,51,.05); }
+  header h1 { color:#1f334d; font-size:17px; letter-spacing:.01em; }
+  header .sub { color:#738197; }
+  main { height:calc(100vh - 64px); padding:0; overflow:hidden; }
+  #app { height:100%; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+  #sslBanner { flex:none; margin:14px 20px 0; border-radius:8px; }
+  #wizard { flex:1; min-height:0; overflow:auto; padding:20px 24px 34px; }
+  #dash.ready { height:100%; min-height:0; display:grid; grid-template-columns:224px minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:18px; padding:18px 20px 20px; }
+  #dash > .menu { grid-column:1; grid-row:1; min-height:0; height:100%; overflow:auto; position:static; display:flex; flex-direction:column; align-items:stretch; gap:4px; margin:0; padding:16px 10px; background:#20344d; border-radius:12px; box-shadow:0 8px 20px rgba(31,51,77,.14); }
+  #dash > .menu .menuTitle { padding:5px 12px 22px; color:#fff; font-size:16px; font-weight:650; }
+  #dash > .menu button { width:100%; flex:none; min-height:42px; padding:9px 13px; color:#b9c9dc; background:transparent; border:1px solid transparent; border-radius:7px; font-size:13px; }
+  #dash > .menu button::before { content:""; display:inline-block; width:7px; height:7px; margin:0 10px 1px 1px; background:currentColor; border-radius:50%; opacity:.8; }
+  #dash > .menu button.active, #dash > .menu button:hover { color:#fff; background:#2f6ca8; border-color:#4a88c5; }
+  #dash > .card, #dash > details { grid-column:2; grid-row:1; min-width:0; min-height:0; height:100%; overflow:auto; margin:0; padding:26px 30px 34px; border-color:#dce3ec; border-radius:12px; box-shadow:0 5px 18px rgba(37,57,82,.06); }
+  #dash > details { padding:0; background:transparent; border:0; overflow:hidden; box-shadow:none; }
+  #dash > details > summary { padding:16px 20px; background:#fff; border:1px solid #dce3ec; border-radius:10px; box-shadow:0 5px 18px rgba(37,57,82,.06); }
+  #dash > details[open] { overflow:auto; }
+  #dash > details[open] > summary { border-radius:10px 10px 0 0; }
+  #dash > details > .card { border-radius:0; border-top:0; margin:0; box-shadow:none; }
+  #dash > details > .card:last-child { border-radius:0 0 10px 10px; }
+  .card h2 { color:#1f334d; font-size:18px; }
+  .card .desc { color:#718096; font-size:13px; line-height:1.7; }
+  .sectionTitle { color:#1f334d; }
+  .welcomePanel { padding:30px 32px; border-radius:12px; background:linear-gradient(135deg,#20344d 0%,#2f6ca8 100%); box-shadow:0 10px 22px rgba(31,51,77,.15); }
+  .overviewStats { gap:14px; }
+  .overviewStat { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.22); }
+  input, select { min-height:40px; border-color:#cbd5e1; border-radius:7px; }
+  input:focus, select:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.13); outline:0; }
+  button { min-height:38px; border-radius:7px; font-weight:550; }
+  button.ghost { background:#f8fafc; border-color:#cbd5e1; }
+  table { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+  th { background:#f7f9fc; color:#526174; }
+  th, td { padding:11px 12px; }
+  .charts { gap:18px; }
+  .chartPanel { padding:16px; background:#fbfcfe; border-color:#e2e8f0; border-radius:9px; }
+  canvas.chart { height:240px; border:0; border-radius:6px; }
+  .loginShell { min-height:calc(100vh - 64px); height:100%; max-width:1120px; margin:0 auto; padding:52px 24px; align-content:center; }
+  .loginBrand { padding:44px; border-radius:16px; }
+  .loginForm { padding:38px; border-radius:16px; box-shadow:0 15px 40px rgba(31,51,77,.1); }
+  @media (max-width:899px) {
+    html, body { overflow:auto; }
+    main { height:auto; min-height:calc(100vh - 64px); overflow:visible; }
+    #app { min-height:calc(100vh - 64px); height:auto; overflow:visible; }
+    #dash.ready { height:auto; min-height:calc(100vh - 64px); display:flex; flex-direction:column; padding:12px; }
+    #dash > .menu { height:auto; min-height:0; flex-direction:row; overflow:auto; }
+    #dash > .menu .menuTitle { display:none; }
+    #dash > .menu button { width:auto; white-space:nowrap; }
+    #dash > .card, #dash > details { height:auto; max-height:none; overflow:visible; padding:22px; }
+  }
+</style>
 </head>
 <body>
 <header>
