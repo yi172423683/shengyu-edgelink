@@ -12,8 +12,7 @@
   header h1 { margin:0; font-size:18px; font-weight:600; }
   header .sub { color:var(--muted); font-size:12px; }
   main { width:100%; max-width:none; margin:0; padding:20px 28px 40px; }
-  #loginCard { max-width:520px; margin:8vh auto 0; padding:28px; }
-  #loginCard h2 { font-size:22px; margin-bottom:8px; }
+  #loginCard { max-width:none; margin:8vh auto 0; padding:0; }
   .card { margin-bottom:16px; padding:22px; background:var(--surface); border:1px solid var(--bd); border-radius:10px; box-shadow:0 2px 7px rgba(30,55,90,.045); }
   .card h2 { margin:0 0 6px; font-size:16px; font-weight:600; }
   .card .desc { margin-bottom:14px; color:var(--muted); font-size:12px; white-space:pre-wrap; }
@@ -67,34 +66,63 @@
   .menu button.active, .menu button:hover { color:#fff; background:#2d65a4; border-color:#3c78bb; }
   .menuTitle { padding:3px 12px 13px; color:#fff; font-size:15px; font-weight:600; }
   .sectionTitle { margin:0 0 16px; font-size:20px; font-weight:650; }
+  .headerActions { display:flex; align-items:center; gap:12px; }
+  .headerActions button { min-height:30px; padding:5px 12px; }
+  .loginShell { max-width:980px; margin:8vh auto 0; display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch; }
+  .loginBrand { padding:34px; color:#fff; background:linear-gradient(145deg,#1f334d,#2e67a5); border-radius:14px; box-shadow:0 12px 30px rgba(31,51,77,.18); }
+  .brandMark { width:52px; height:52px; display:grid; place-items:center; margin-bottom:24px; color:#1f334d; background:#fff; border-radius:14px; font-weight:750; letter-spacing:.04em; }
+  .loginBrand h2 { margin:0 0 12px; font-size:28px; font-weight:650; }
+  .loginBrand p { margin:0; color:#dbe8f7; line-height:1.8; }
+  .loginFeatures { display:grid; gap:10px; margin-top:26px; color:#eef6ff; font-size:13px; }
+  .loginFeatures span { padding-left:18px; position:relative; }
+  .loginFeatures span::before { content:""; position:absolute; left:0; top:7px; width:6px; height:6px; background:#8dc3ff; border-radius:50%; }
+  .loginForm { margin:0; padding:32px; }
+  .loginForm h2 { margin:0 0 8px; font-size:22px; }
+  .loginForm .desc { margin-bottom:22px; }
+  .loginForm .row button { width:100%; min-height:42px; }
+  .welcomePanel { padding:26px; color:#fff; background:linear-gradient(135deg,#1f334d,#2f6dad); border-radius:10px; }
+  .welcomePanel h2 { margin:0 0 8px; color:#fff; font-size:22px; }
+  .welcomePanel p { margin:0; color:#dbe8f7; }
+  .overviewStats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:18px; }
+  .overviewStat { padding:14px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:8px; }
+  .overviewStat b { display:block; margin-top:3px; font-size:20px; color:#fff; }
   .charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:14px; }
   .chartPanel { min-width:0; padding:12px; border:1px solid #ededed; background:#fafafa; }
   .chartPanel h3 { margin:0 0 8px; font-size:13px; font-weight:600; }
   canvas.chart { display:block; width:100%; height:220px; background:#fff; border:1px solid #ededed; }
   @media (min-width:900px) { #dash.ready { display:grid; grid-template-columns:210px minmax(0,1fr); gap:22px; align-items:start; } #dash > .menu { grid-column:1; grid-row:1 / span 30; position:sticky; top:12px; flex-direction:column; min-height:calc(100vh - 100px); margin:0; padding:14px 10px; } #dash > .menu button { width:100%; } #dash > .card, #dash > details { grid-column:2; } }
-  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } .charts { grid-template-columns:1fr; } .menu { position:static; overflow-x:auto; flex-wrap:nowrap; } .menu button { white-space:nowrap; } }
+  @media (max-width:760px) { .loginShell { grid-template-columns:1fr; margin-top:4vh; } .loginBrand { padding:26px; } }
+  @media (max-width:640px) { main { padding:14px; } header { padding:12px 16px; } #loginCard { margin-top:5vh; padding:20px; } .card { padding:16px; } table { display:block; overflow-x:auto; white-space:nowrap; } .charts { grid-template-columns:1fr; } .menu { position:static; overflow-x:auto; flex-wrap:nowrap; } .menu button { white-space:nowrap; } .overviewStats { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <header>
   <div>
     <h1>盛愈边缘网关</h1>
-    <div class="sub">自定义端口 · 自定义域名 · TLS SNI 透传</div>
+    <div class="sub">安全管理 · 边缘转发服务</div>
   </div>
-  <div class="sub" id="hdrRight"></div>
+  <div class="headerActions"><div class="sub" id="hdrRight"></div><button id="btnLogout" class="ghost" style="display:none">退出登录</button></div>
 </header>
 <main>
 
   <!-- ========== 登录 ========== -->
-  <div class="card" id="loginCard">
-    <h2>登录</h2>
-    <div class="desc">使用服务器上已有的管理员账号登录。忘记口令时，请在服务器运行 edgelink 菜单中的“重置管理员密码”；重复安装不会覆盖已有口令。</div>
-    <div class="grid">
-      <div><label>用户名</label><input id="u" value="admin" autocomplete="username"></div>
-      <div><label>口令</label><input id="p" type="password" autocomplete="current-password"></div>
-    </div>
-    <div class="row"><button id="btnLogin">登录</button></div>
-    <div class="msg" id="loginMsg"></div>
+  <div class="loginShell" id="loginCard">
+    <section class="loginBrand">
+      <div class="brandMark">SG</div>
+      <h2>盛愈边缘网关</h2>
+      <p>统一管理域名转发、入口端口和运行状态，让边缘节点的每一次连接都清晰可见。</p>
+      <div class="loginFeatures"><span>TLS SNI 透传与多入口管理</span><span>连接日志与带宽趋势</span><span>发布前检查，失败自动回滚</span></div>
+    </section>
+    <section class="card loginForm">
+      <h2>登录管理台</h2>
+      <div class="desc">使用你的网关账号继续。登录后只显示当前账号有权限查看的内容。</div>
+      <div>
+        <label>用户名</label><input id="u" value="admin" autocomplete="username" placeholder="输入用户名">
+        <label style="margin-top:16px">密码</label><input id="p" type="password" autocomplete="current-password" placeholder="输入密码">
+      </div>
+      <div class="row"><button id="btnLogin">登录管理台</button></div>
+      <div class="msg" id="loginMsg"></div>
+    </section>
   </div>
 
   <div id="app" style="display:none">
@@ -231,7 +259,8 @@
 
       <nav class="menu" aria-label="管理菜单">
         <div class="menuTitle">盛愈边缘网关</div>
-        <button data-menu-target="businessCard" data-section="rules" class="active">转发规则</button>
+        <button data-menu-target="overviewCard" data-section="overview" class="active">总览</button>
+        <button data-menu-target="businessCard" data-section="rules">转发规则</button>
         <button data-menu-target="logsCard" data-section="logs">连接日志</button>
         <button data-menu-target="trafficCard" data-section="traffic">流量监控</button>
         <button data-menu-target="publishCard" data-section="publish">发布与回滚</button>
@@ -239,9 +268,22 @@
         <button data-menu-target="accountPanel" data-section="account">账号管理</button>
       </nav>
 
+      <div class="card" id="overviewCard" data-section="overview">
+        <div class="welcomePanel">
+          <h2>欢迎回来，<span id="welcomeUser">管理员</span></h2>
+          <p>这里是你的边缘转发总览。选择左侧模块查看规则、流量和运行情况。</p>
+          <div class="overviewStats">
+            <div class="overviewStat">业务规则<b id="overviewBizCount">-</b></div>
+            <div class="overviewStat">当前状态<b id="overviewStatus">-</b></div>
+            <div class="overviewStat">当前版本<b id="overviewVersion">-</b></div>
+          </div>
+        </div>
+        <div class="row"><button id="btnOverviewRules">查看转发规则</button><button id="btnOverviewTraffic" class="ghost">查看流量监控</button></div>
+      </div>
+
       <details class="advanced" id="settingsDetails" data-section="settings">
         <summary>系统设置与入口端口</summary>
-      <div class="card" id="securityCard" data-section="account">
+      <div class="card">
         <h2>管理端口与健康检查</h2>
         <div class="desc">管理端口只用于打开后台，数据转发不经过这里；健康检查接口供监控判断服务是否存活。</div>
         <div class="grid">
@@ -271,7 +313,7 @@
       </div>
       </details>
 
-      <div class="card">
+      <div class="card" id="securityCard" data-section="account">
         <h2>账户安全</h2>
         <div class="desc">修改当前管理员口令。修改成功后现有登录会话会失效，需要使用新口令重新登录。</div>
         <div class="grid">
@@ -427,6 +469,7 @@ $("btnLogin").onclick = async () => {
     csrf = res.data.csrf_token;
     $("loginCard").style.display = "none";
     $("app").style.display = "";
+    $("btnLogout").style.display = "";
     if (!(await boot())) {
       csrf = "";
       $("app").style.display = "none";
@@ -435,6 +478,7 @@ $("btnLogin").onclick = async () => {
   } catch (err) {
     csrf = "";
     $("app").style.display = "none";
+    $("btnLogout").style.display = "none";
     $("loginCard").style.display = "";
     show("loginMsg", "无法连接管理服务，请检查网络或服务器状态后重试。", "err");
   } finally {
@@ -510,8 +554,10 @@ async function boot() {
     await loadTraffic(true);
     if (trafficTimer) clearInterval(trafficTimer);
     trafficTimer = setInterval(() => loadTraffic(false), 5000);
-    const firstMenu = document.querySelector("[data-menu-target='businessCard']");
-    if (firstMenu) showSection("rules", firstMenu);
+    renderOverview();
+    applyRoleView();
+    const firstMenu = document.querySelector("[data-menu-target='overviewCard']");
+    if (firstMenu) showSection("overview", firstMenu);
   } else {
     $("dash").style.display = "none";
     $("dash").classList.remove("ready");
@@ -522,6 +568,23 @@ async function boot() {
     gotoStep(1);
   }
   return true;
+}
+
+function renderOverview() {
+  const node = meta && meta.node;
+  $("welcomeUser").textContent = currentUser ? currentUser.username : "管理员";
+  $("overviewBizCount").textContent = String((meta && meta.business_count) || 0);
+  $("overviewStatus").textContent = meta && meta.initialized ? "运行中" : "待配置";
+  $("overviewVersion").textContent = node && node.applied_version ? "v" + node.applied_version : "未发布";
+}
+
+function applyRoleView() {
+  const customerView = !currentUser || currentUser.role === "customer" || currentUser.role === "readonly";
+  if (!customerView) return;
+  $("sslBanner").style.display = "none";
+  document.querySelectorAll("[data-menu-target]").forEach(button => {
+    if (["logs", "publish", "settings", "account"].indexOf(button.dataset.section) >= 0) button.style.display = "none";
+  });
 }
 
 async function loadUsers() {
@@ -646,6 +709,10 @@ async function loadTraffic(forceHistory) {
 
 $("btnRefreshLogs").onclick = loadLogs;
 $("btnRefreshTraffic").onclick = () => loadTraffic(true);
+$("btnLogout").onclick = async () => {
+  await api("POST", "/api/logout");
+  location.reload();
+};
 $("btnDiagnose").onclick = async () => {
   const res = await api("GET", "/api/diagnose?limit=50");
   if (res.status !== 200) { show("logsMsg", errText(res, "诊断失败"), "err"); return; }
@@ -670,6 +737,15 @@ function showSection(section, button) {
 document.querySelectorAll("[data-menu-target]").forEach(button => {
   button.onclick = () => showSection(button.dataset.section, button);
 });
+
+$("btnOverviewRules").onclick = () => {
+  const button = document.querySelector("[data-menu-target='businessCard']");
+  if (button) showSection("rules", button);
+};
+$("btnOverviewTraffic").onclick = () => {
+  const button = document.querySelector("[data-menu-target='trafficCard']");
+  if (button) showSection("traffic", button);
+};
 
 function gotoStep(n) {
   wizardStep = n;
