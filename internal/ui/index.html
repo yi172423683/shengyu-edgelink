@@ -37,6 +37,9 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
 @media(max-width:900px){.clientUsageGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.clientUsageGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.clientUsageCard{min-height:84px;padding:11px}.clientUsageCard b{font-size:19px}}
 .statusBad{color:var(--bad);font-size:11px;font-weight:700}.noticeWarn{min-height:60px;padding:14px 0 0;color:var(--bad);font-size:11px;line-height:1.7}.logReason{margin-top:4px;color:var(--sub);font-size:11px}.logReason summary,.applyDetail summary,.auditDetails summary{cursor:pointer;color:var(--a)}.logReason span,.logReason small{display:block;max-width:280px;margin-top:4px;white-space:normal;overflow-wrap:anywhere}.logReason small{color:var(--muted)}.applyDetail{margin:8px 0;padding:10px 12px;background:#fff8e8;border:1px solid #f0dcad;border-radius:var(--r);font-size:12px}.applyDetail pre{max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#59451d;font:11px/1.5 ui-monospace,Consolas,monospace}.auditDetails{margin-top:14px;padding:10px 0;border-top:1px solid var(--b);font-size:12px}
+@media(min-width:761px){#loginCard{width:100%;height:100%;min-height:calc(100vh - 56px);margin:0;border:0;border-radius:0;box-shadow:none;grid-template-columns:1fr 1fr;background:#fff;backdrop-filter:none}.loginBrand{min-height:100%;padding:64px max(48px,8vw)}.loginForm{width:min(100%,620px);min-height:100%;margin:auto;padding:64px}.routerHome{width:100%;max-width:none;min-height:100%;margin:0;border-radius:var(--rl)}#dash>#overviewCard{height:100%;overflow:auto}}
+@media(max-width:760px){#loginCard{width:100%;min-height:calc(100vh - 56px);margin:0;border:0;border-radius:0;box-shadow:none}.loginBrand{min-height:180px}.loginForm{min-height:calc(100vh - 236px)}}
+.bizCheck{display:flex;align-items:center;gap:8px;min-width:210px}.bizCheck .tag{white-space:nowrap}.bizCheck button{min-height:30px;padding:4px 9px;font-size:11px}
 </style>
 </head>
 <body>
@@ -72,10 +75,6 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
   <div id="app" style="display:none">
 
     <!-- ========== SSL 说明（常驻） ========== -->
-    <div class="banner blue" id="sslBanner">
-      <strong>TLS 透传</strong>：证书由源站自己持有和续期，平台不会申请证书。<span id="sslTerminateNote"></span>
-    </div>
-
     <!-- ========== 首次初始化向导 ========== -->
     <div id="wizard" style="display:none">
       <div class="steps" id="stepBar"></div>
@@ -137,7 +136,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
           <div>
             <label>源站地址 <span class="req">*</span></label>
             <input id="originHost" placeholder="10.0.0.5 / 2001:db8::1 / origin.example.com">
-            <div class="hint">源站地址可填 IPv4、IPv6 或域名。填域名时 HAProxy 只在启动时解析一次，DNS 变更后需要重新发布。</div>
+            <div class="hint">源站地址可填写 IPv4、IPv6 或域名。</div>
           </div>
           <div>
             <label>源站端口 <span class="req">*</span></label>
@@ -161,8 +160,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
           <div>
             <label>TLS 模式</label>
             <select id="tlsMode">
-              <option value="sni_tls" selected>TLS 透传（证书在源站）— 可用</option>
-              <option value="tls_terminate" disabled>TLS 终止（平台代申请证书）— 尚未实现</option>
+              <option value="sni_tls" selected>加密流量转发</option>
             </select>
             <div class="hint" id="tlsModeHint"></div>
           </div>
@@ -233,7 +231,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
             <canvas id="overviewLiveChart" class="chart overviewChart" width="1000" height="270"></canvas>
           </div>
           <div class="routerBottomGrid">
-            <div class="statusList"><div class="statusListHead"><strong>运行检查</strong><span>每 5 秒更新</span></div><div class="statusRow"><span>管理服务</span><b id="overviewManagerStatus">检查中</b></div><div class="statusRow"><span>HAProxy 代理</span><b id="overviewProxyStatus">检查中</b></div><div class="statusRow"><span>配置版本</span><b id="overviewConfigVersion">-</b></div></div>
+            <div class="statusList"><div class="statusListHead"><strong>运行检查</strong><span>每 5 秒更新</span></div><div class="statusRow"><span>管理服务</span><b id="overviewManagerStatus">检查中</b></div><div class="statusRow"><span>转发服务</span><b id="overviewProxyStatus">检查中</b></div><div class="statusRow"><span>配置版本</span><b id="overviewConfigVersion">-</b></div></div>
             <div class="statusList"><div class="statusListHead"><strong>需要关注</strong><span>根据当前数据自动提示</span></div><div id="overviewNotice" class="noticeEmpty">暂无异常提示</div></div>
           </div>
         </section>
@@ -273,7 +271,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
 
       <div class="card" id="securityCard" data-section="account">
         <h2>账户安全</h2>
-        <div class="desc">修改当前管理员口令。修改成功后现有登录会话会失效，需要使用新口令重新登录。</div>
+        <div class="desc">当前账号：<b id="signedInUser">-</b>。修改口令后需要使用新口令重新登录。</div>
         <div class="grid">
           <div><label>当前口令</label><input id="currentPassword" type="password" autocomplete="current-password"></div>
           <div><label>新口令（至少 12 个字符）</label><input id="newPassword" type="password" autocomplete="new-password"></div>
@@ -291,7 +289,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
           <div class="clientUsageCard"><span>近 7 天流量</span><b id="clientWeekGB">-</b><small>自然日累计 · GB</small></div>
           <div class="clientUsageCard"><span>近 30 天流量</span><b id="clientMonthGB">-</b><small>自然日累计 · GB</small></div>
         </div>
-        <div class="clientTrafficNote">实时速率来自 HAProxy 客户端计数表，每 5 秒刷新。周期总量来自已完成连接日志；仍在线的长连接会在结束后计入周期统计。</div>
+        <div class="clientTrafficNote">显示每位客户端的实时上下行速率，以及今天、近 7 天和近 30 天的流量统计。</div>
         <div id="clientTrafficMsg" class="msg"></div>
         <div class="tableHeading"><div><strong>当前活跃客户端</strong><span>下载 / 上传按 IP 汇总 · 排序以当前吞吐为准</span></div><button id="btnRefreshClientTraffic" class="ghost">立即刷新</button></div>
         <div id="clientTrafficTable"></div>
@@ -322,18 +320,6 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
         <div id="trafficTable"></div>
       </div>
 
-      <div class="card" id="userAdminCard" data-section="account" style="display:none">
-        <h2>账号管理</h2>
-        <div class="desc">管理员可以创建自定义用户名并设置初始口令；当前版本新账号统一为管理员，重置口令会立即让该账号已有会话失效。</div>
-        <div class="grid">
-          <div><label>用户名</label><input id="newUsername" autocomplete="off" placeholder="例如 operator"></div>
-          <div><label>初始口令（至少 12 个字符）</label><input id="newUserPassword" type="password" autocomplete="new-password"></div>
-        </div>
-        <div class="row"><button id="btnCreateUser">创建账号</button></div>
-        <div class="msg" id="userMsg"></div>
-        <div id="userTable"></div>
-      </div>
-
       <div class="card" id="businessCard" data-section="rules">
         <h2>转发规则</h2>
         <div class="desc">填写客户提供的域名和源站信息，再填写客户访问本站使用的端口。保存后系统会自动检查并启用转发。</div>
@@ -341,7 +327,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
           <div><label>域名 <span class="req">*</span></label><input id="dDomains" placeholder="service.example.com"></div>
           <div><label>源站 IP <span class="req">*</span></label><input id="dOriginHost" placeholder="203.0.113.10"></div>
           <div><label>源站端口 <span class="req">*</span></label><input id="dOriginPort" type="number" value="443" min="1" max="65535"></div>
-          <div><label>本站监听端口 <span class="req">*</span></label><input id="dListenPort" type="number" value="8444" min="1" max="65535"><div class="hint">用户连接到本站的端口。若该端口被其它程序占用，保存时会提示更换。</div></div>
+          <div><label>本站监听端口 <span class="req">*</span></label><input id="dListenPort" type="number" value="443" min="1" max="65535"><div class="hint">默认与源站端口相同，可按需修改。此端口供用户连接到本站。</div></div>
           <input id="dBizName" type="hidden">
           <input id="dHcKind" type="hidden" value="tcp">
           <select id="dSniSelect" style="display:none"></select>
@@ -372,7 +358,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
 const $ = id => document.getElementById(id);
 let csrf = "", nodeId = "", customerId = "";
 let meta = null, currentUser = null, wizardStep = 1, sniList = [], bizList = [], editingBizId = "";
-let trafficTimer = null, clientTrafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0, lastClientSummaryAt = 0, liveTrafficPoints = [], latestDailyTraffic = [], clientTrafficPeriods = {};
+let trafficTimer = null, clientTrafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0, lastClientSummaryAt = 0, liveTrafficPoints = [], latestDailyTraffic = [], clientTrafficPeriods = {}, listenPortManuallyEdited = false;
 
 // 发布阶段：顺序与服务端真实执行顺序一致。
 // 界面只是把服务端返回的 phase 映射成"走到哪一步"，不臆造状态。
@@ -381,8 +367,8 @@ const PHASES = [
   ["portcheck", "发布前端口占用检查"],
   ["render",   "生成候选配置"],
   ["write",    "写入候选配置到版本目录"],
-  ["validate", "语法检查（haproxy -c）"],
-  ["reload",   "HAProxy reload（平滑接管）"],
+  ["validate", "检查新配置"],
+  ["reload",   "平滑切换转发配置"],
   ["verify",   "等待就绪 + 运行版本校验"],
   ["probe",    "源站健康检查"],
 ];
@@ -485,17 +471,6 @@ async function boot() {
     (meta.product || "盛愈边缘网关") + " · 版本 " + (meta.version || "-") +
     " · 管理端口 " + (meta.listen_addr || "-");
 
-  // TLS 能力：按后端声明渲染，未实现就明确标"未实现"
-  const t = meta.tls || {};
-  const term = t.terminate || {};
-  $("sslTerminateNote").innerHTML = term.supported
-    ? ""
-    : "<br><b>TLS 终止（" + esc(term.label || "平台代申请证书") + "）：<span class='tag no'>尚未实现</span></b> " +
-      esc(term.note || "当前不会申请也不会续期任何证书。");
-  if ($("tlsModeHint")) {
-    $("tlsModeHint").innerHTML = term.supported ? "" : "TLS 终止尚未实现，不可选择。" + esc(term.note || "");
-  }
-
   // 节点：单节点部署直接取第一个
   const nodes = await api("GET", "/api/nodes");
   if (nodes.status === 200 && nodes.data && nodes.data.items && nodes.data.items.length) {
@@ -512,6 +487,8 @@ async function boot() {
   $("wizard").style.display = "none";
   $("dash").style.display = "";
   $("dash").classList.add("ready");
+  const firstMenu = document.querySelector("[data-menu-target='overviewCard']");
+  if (firstMenu) showSection("overview", firstMenu, true);
   const port = location.port || (location.protocol === "https:" ? "443" : "80");
   $("mgmtPort").value = meta.listen_addr || (location.hostname + ":" + port);
   $("healthUrl").value = "http://" + (meta.listen_addr || (location.hostname + ":" + port)) + "/api/health";
@@ -526,8 +503,6 @@ async function boot() {
   if (clientTrafficTimer) clearInterval(clientTrafficTimer);
   clientTrafficTimer = setInterval(() => loadClientTraffic(false), 5000);
   applyRoleView();
-  const firstMenu = document.querySelector("[data-menu-target='overviewCard']");
-  if (firstMenu) showSection("overview", firstMenu);
   return true;
 }
 
@@ -552,7 +527,6 @@ function renderOverview() {
 function applyRoleView() {
   const customerView = !currentUser || currentUser.role === "customer" || currentUser.role === "readonly";
   if (!customerView) return;
-  $("sslBanner").style.display = "none";
   document.querySelectorAll("[data-menu-target]").forEach(button => {
     if (["logs", "publish", "settings", "account"].indexOf(button.dataset.section) >= 0) button.style.display = "none";
   });
@@ -561,50 +535,27 @@ function applyRoleView() {
 async function loadUsers() {
   const me = await api("GET", "/api/me");
   currentUser = me.data || null;
-  if (!currentUser || currentUser.role !== "admin") return;
-  $("userAdminCard").style.display = "";
-  const res = await api("GET", "/api/users");
-  if (res.status !== 200) { show("userMsg", errText(res, "读取账号失败"), "err"); return; }
-  let h = "<table><tr><th>用户名</th><th>角色</th><th>状态</th><th>最后登录</th><th>操作</th></tr>";
-  for (const u of (res.data.items || [])) {
-    h += "<tr><td>" + esc(u.username) + "</td><td>" + esc(u.role) + "</td><td>" + (u.enabled ? "启用" : "停用") +
-      "</td><td>" + esc(u.last_login_at || "未登录") + "</td><td><button class='ghost' data-reset-user='" + esc(u.id) + "' data-user-name='" + esc(u.username) + "'>重置口令</button></td></tr>";
-  }
-  $("userTable").innerHTML = h + "</table>";
-  $("userTable").querySelectorAll("button[data-reset-user]").forEach(b => b.onclick = async () => {
-    const password = prompt("为“" + b.dataset.userName + "”输入新口令（至少 12 个字符）");
-    if (password === null) return;
-    const r = await api("POST", "/api/users/" + b.dataset.resetUser + "/password", { password });
-    show("userMsg", r.status === 200 ? "口令已重置，该账号需要重新登录。" : errText(r, "重置口令失败"), r.status === 200 ? "ok" : "err");
-  });
+  if ($("signedInUser")) $("signedInUser").textContent = currentUser ? currentUser.username : "-";
 }
-
-$("btnCreateUser").onclick = async () => {
-  const res = await api("POST", "/api/users", { username: $("newUsername").value, password: $("newUserPassword").value });
-  if (res.status !== 201) { show("userMsg", errText(res, "创建账号失败"), "err"); return; }
-  $("newUsername").value = ""; $("newUserPassword").value = "";
-  show("userMsg", "账号已创建：" + res.data.username, "ok");
-  await loadUsers();
-};
 
 function logValue(row, name) { return row[name] == null ? "-" : row[name]; }
 
 function connectionResult(row) {
   const code = String(row.term_code || "");
   const reason = String(row.term_reason || "");
-  if (row.parse_ok === false) return ["日志信息不完整", "no", "HAProxy 日志未能完整解析"];
+  if (row.parse_ok === false) return ["日志信息不完整", "no", "连接记录未能完整解析"];
   if (reason.indexOf("源站连接失败") >= 0) return ["无法连接源站", "no", reason];
   if (reason.indexOf("未匹配 SNI") >= 0) return ["域名未匹配转发规则", "no", reason];
   if (reason.indexOf("非 TLS 流量") >= 0 || reason.indexOf("未发送 SNI") >= 0) return ["访问协议或域名不匹配", "no", reason];
-  if (code === "--" || code === "-") return ["连接正常结束", "yes", "HAProxy 未记录连接异常；这不代表源站应用内容已验证"];
-  if (code === "CC") return ["客户端在连上源站前中止", "warn", "客户端在 HAProxy 等待源站连接时提前中止；也可能是客户端超时设置较短"];
-  if (code === "CD" || code === "CH" || code === "CQ" || code === "CR") return ["客户端侧连接中断", "warn", "HAProxy 记录到客户端连接中断；中间网络设备也可能造成此现象"];
+  if (code === "--" || code === "-") return ["连接正常结束", "yes", "连接已正常关闭；这不代表源站应用内容已验证"];
+  if (code === "CC") return ["客户端在连上源站前中止", "warn", "客户端在等待源站连接时提前中止；也可能是客户端超时设置较短"];
+  if (code === "CD" || code === "CH" || code === "CQ" || code === "CR") return ["客户端侧连接中断", "warn", "客户端连接在传输期间中断；中间网络设备也可能造成此现象"];
   if (code === "SC") return ["源站拒绝连接", "no", "源站或两者之间的网络设备拒绝了 TCP 连接"];
-  if (code === "sC") return ["连接源站超时", "no", "HAProxy 等待源站建立连接超时"];
+  if (code === "sC") return ["连接源站超时", "no", "等待源站建立连接超时"];
   if (code === "SD" || code === "SH") return ["源站侧连接异常", "no", "源站或中间网络在传输期间中断连接"];
-  if (code === "sD" || code === "sH") return ["等待源站超时", "no", "源站在 HAProxy 超时期限内没有返回数据"];
-  if (code === "PC" || code === "RC") return ["代理资源不足", "no", "HAProxy 无法建立源站连接，可能达到本机 socket 或端口资源限制"];
-  return ["连接异常，原因待确认", "warn", reason || (code ? "HAProxy 状态码 " + code : "没有可用的错误原因")];
+  if (code === "sD" || code === "sH") return ["等待源站超时", "no", "源站在超时期限内没有返回数据"];
+  if (code === "PC" || code === "RC") return ["转发资源不足", "no", "本机连接或端口资源可能不足"];
+  return ["连接异常，原因待确认", "warn", reason || (code ? "连接状态 " + code : "没有可用的错误原因")];
 }
 
 async function loadLogs() {
@@ -623,7 +574,7 @@ async function loadLogs() {
     const connect = logValue(row, "connect_ms") === "-" ? "未建立" : esc(logValue(row, "connect_ms")) + " ms";
     const session = logValue(row, "session_ms") === "-" ? "-" : esc(logValue(row, "session_ms")) + " ms";
     const origin = esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port"));
-    const source = row.origin_reported === true ? "HAProxy 实际连接" : "配置目标";
+    const source = row.origin_reported === true ? "实际连接源站" : "配置目标";
     const details = "状态码 " + (row.term_code || "-") + (row.term_reason ? "；" + row.term_reason : "");
     const up = logValue(row, "bytes_up"), down = logValue(row, "bytes_down");
     h += "<tr><td><b>" + esc(logValue(row, "end_ts")) + "</b><span class='tableSecondary'>入口 " + esc(logValue(row, "entry_port")) + "</span></td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "sni")) + "</td><td><span class='tablePrimary'>" + origin + "</span><span class='tableSecondary'>" + source + "</span></td><td>连接 " + connect + "<span class='tableSecondary'>会话 " + session + "</span></td><td>↑" + (up === "-" ? "不可用" : bytesText(up)) + " / ↓" + (down === "-" ? "不可用" : bytesText(down)) + "</td><td><span class='tag " + (result[1] === "yes" ? "yes" : result[1] === "no" ? "no" : "") + "'>" + esc(result[0]) + "</span><details class='logReason'><summary>原因</summary><span>" + esc(result[2]) + "</span><small>" + esc(details) + "</small></details></td></tr>";
@@ -765,15 +716,15 @@ async function loadTraffic(forceHistory) {
   }
   const backendDown = Number(st.backend_down || 0);
   if ($("overviewHealth")) {
-    const label = !managerOK ? "管理服务异常" : !proxyOK ? "HAProxy 代理异常" : backendDown ? "源站探测异常" : "运行正常";
+    const label = !managerOK ? "管理服务异常" : !proxyOK ? "转发服务异常" : backendDown ? "源站探测异常" : "运行正常";
     $("overviewHealth").textContent = label;
     $("overviewHealth").className = !managerOK || !proxyOK || backendDown ? "statusBad" : "statusGood";
   }
   if ($("overviewNotice")) {
     const notice = !managerOK ? "管理服务健康接口无响应，请检查系统服务与服务器资源。" :
-      !proxyOK ? "无法读取 HAProxy 运行指标，请检查代理服务及其本地统计接口。" :
+      !proxyOK ? "暂时无法获取转发服务状态，请检查服务是否正在运行。" :
       backendDown ? "有 " + backendDown + " 个源站健康检查失败。打开连接日志查看源站地址和失败原因。" :
-      "管理服务、HAProxy 代理和源站探测均正常。";
+      "管理服务、转发服务和源站连接检测均正常。";
     $("overviewNotice").textContent = notice;
     $("overviewNotice").className = backendDown || !managerOK || !proxyOK ? "noticeWarn" : "noticeEmpty";
   }
@@ -810,16 +761,15 @@ $("btnDiagnose").onclick = async () => {
   $("diagnoseBox").innerHTML = "<h3 style='font-size:14px;margin:16px 0 4px'>诊断结果</h3>" + (findings.length ? findings.map(x => "<div class='banner " + (x.severity === "error" ? "" : "blue") + "'><b>" + esc(x.category || "结论") + "</b>：" + esc((x.facts || []).join("；") || x.summary || "无异常说明") + "</div>").join("") : "<div class='hint'>没有返回诊断结论。</div>");
 };
 
-function showSection(section, button) {
+function showSection(section, button, instant) {
   const panels = document.querySelectorAll("#dash > [data-section]");
   panels.forEach(panel => {
     const visible = panel.dataset.section === section;
     panel.style.display = visible ? "" : "none";
     if (visible && panel.tagName === "DETAILS") panel.open = true;
   });
-  if (section === "account" && currentUser && currentUser.role === "admin") $("userAdminCard").style.display = "";
   const target = $(button.dataset.menuTarget) || document.querySelector("#dash > [data-section='" + section + "']");
-  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (target) target.scrollIntoView({ behavior: instant ? "auto" : "smooth", block: "start" });
   document.querySelectorAll("[data-menu-target]").forEach(b => b.classList.remove("active"));
   button.classList.add("active");
 }
@@ -864,7 +814,6 @@ async function fillWelcome() {
     ["节点 ID", n.id || "-"],
     ["公网 IPv4", n.public_ipv4 || "-"],
     ["公网 IPv6", n.public_ipv6 || "-"],
-    ["HAProxy 版本", n.haproxy_version || "-"],
     ["当前生效版本", n.applied_version === 0 ? "v0（基线，不监听任何端口）" : ("v" + n.applied_version)],
   ];
   let h = "";
@@ -874,6 +823,11 @@ async function fillWelcome() {
 
 // ---------------- 步骤 2：数据面入口 ----------------
 function portBad(port) { return !(port >= 1 && port <= 65535); }
+
+$("dOriginPort").addEventListener("input", () => {
+  if (!listenPortManuallyEdited) $("dListenPort").value = $("dOriginPort").value;
+});
+$("dListenPort").addEventListener("input", () => { listenPortManuallyEdited = true; });
 
 $("btnPortCheck").onclick = async () => {
   if (!nodeId) { show("sniMsg", "未找到节点", "err"); return; }
@@ -996,10 +950,11 @@ $("btnDBiz").onclick = async () => {
     editingBizId = saved.id || editing;
     const enabled = await applyForwardingChange("dBizMsg", "业务配置已保存");
     if (enabled) {
+      if (editingBizId) await checkBizStatus(editingBizId);
       editingBizId = "";
       $("btnDBiz").textContent = "保存并启用转发";
       $("btnCancelBizEdit").style.display = "none";
-      $("dDomains").value = ""; $("dOriginHost").value = ""; $("dOriginPort").value = "443"; $("dListenPort").value = "8444";
+      $("dDomains").value = ""; $("dOriginHost").value = ""; $("dOriginPort").value = "443"; $("dListenPort").value = "443"; listenPortManuallyEdited = false;
     } else {
       $("btnDBiz").textContent = "重试保存并启用";
       $("btnCancelBizEdit").style.display = "";
@@ -1028,14 +983,12 @@ async function applyForwardingChange(msgId, savedText) {
   const d = res.data || {};
   if (res.status !== 200 || d.status === "failed") {
     let plain = "规则已保存，但尚未启用。当前正在运行的转发保持不变。";
-    let technical = errText(res, d.message || "HAProxy 未能加载新配置");
     if (d.phase === "portcheck" || (res.data && res.data.code === "port_in_use")) plain = "本站监听端口正在被其他程序使用，规则已保存但未启用。请修改本站端口后重试。";
-    else if (d.phase === "validate") plain = "HAProxy 检查新配置时发现问题，规则未启用。修正规则后再次保存即可。";
-    else if (d.phase === "reload" || d.phase === "verify") plain = "HAProxy 未能确认新配置已正常运行，原有转发继续保持。请稍后重试。";
-    const detail = esc(technical + "\n" + JSON.stringify(d, null, 2));
+    else if (d.phase === "validate") plain = "新配置检查未通过，规则未启用。请修改规则后重试。";
+    else if (d.phase === "reload" || d.phase === "verify") plain = "转发服务未能确认新配置已正常运行，原有转发继续保持。请稍后重试。";
     show(msgId, plain, "err");
     document.querySelectorAll(".applyDetail").forEach(el => el.remove());
-    $("dBizMsg").insertAdjacentHTML("afterend", "<details class='applyDetail'><summary>技术详情</summary><p>修改并释放占用端口后，可以在这里重试。</p><button type='button' data-retry-apply>重试应用更改</button><pre>" + detail + "</pre></details>");
+    $("dBizMsg").insertAdjacentHTML("afterend", "<div class='applyDetail'><p>修改规则或本站端口后，可以重试启用。</p><button type='button' data-retry-apply>重试应用更改</button></div>");
     const retry = document.querySelector("[data-retry-apply]");
     if (retry) retry.onclick = () => applyForwardingChange("dBizMsg", savedText);
     await loadSNI(); await loadBiz();
@@ -1044,7 +997,7 @@ async function applyForwardingChange(msgId, savedText) {
   const down = Number(d.origin_down || 0);
   let message = savedText + "，变更已应用。";
   if (down) message += " 转发规则已生效，但源站探测暂不可用，请检查 IP、端口及源站防火墙。";
-  else message += " HAProxy 源站探测正常。";
+  else message += " 源站连接检测正常。";
   show(msgId, message, down ? "warn" : "ok");
   document.querySelectorAll(".applyDetail").forEach(el => el.remove());
   const m = await api("GET", "/api/meta");
@@ -1057,7 +1010,7 @@ $("btnCancelBizEdit").onclick = () => {
   editingBizId = "";
   $("btnDBiz").textContent = "保存并启用转发";
   $("btnCancelBizEdit").style.display = "none";
-  $("dDomains").value = ""; $("dOriginHost").value = ""; $("dOriginPort").value = "443"; $("dListenPort").value = "8444";
+  $("dDomains").value = ""; $("dOriginHost").value = ""; $("dOriginPort").value = "443"; $("dListenPort").value = "443"; listenPortManuallyEdited = false;
   show("dBizMsg", "已取消编辑", "ok");
 };
 
@@ -1140,7 +1093,10 @@ async function loadBiz() {
       origin_host: route.origin_host || "",
       origin_port: route.origin_port || 0,
       sni_entry_id: route.sni_entry_id || "",
-      route_id: route.id || ""
+      route_id: route.id || "",
+      last_applied_version: Number(route.last_applied_version || 0),
+      route_updated_at: route.updated_at || "",
+      business_updated_at: b.updated_at || ""
     });
   }));
   bizList = details;
@@ -1149,7 +1105,7 @@ async function loadBiz() {
     const entry = sniList.find(e => e.id === b.sni_entry_id);
     const entryText = entry ? entry.bind_port : "-";
     h += "<tr><td>" + esc((b.domains || []).join(", ")) + "</td><td>" + esc(entryText) + "</td><td>" +
-         esc(b.origin_host || "-") + "</td><td>" + esc(b.origin_port || "-") + "</td><td>已配置</td>" +
+         esc(b.origin_host || "-") + "</td><td>" + esc(b.origin_port || "-") + "</td><td><div class='bizCheck'><span class='tag' data-biz-status='" + esc(b.id) + "'>未检查</span><button class='ghost' data-biz-check='" + esc(b.id) + "'>检查状态</button></div></td>" +
          "<td><button data-biz-edit=\"" + esc(b.id) + "\">修改</button> " +
          "<button data-biz-delete=\"" + esc(b.id) + "\">删除</button></td></tr>";
   }
@@ -1166,7 +1122,55 @@ async function loadBiz() {
     table.querySelectorAll("button[data-biz-delete]").forEach(function (btn) {
       btn.onclick = function () { deleteBiz(btn.getAttribute("data-biz-delete")); };
     });
+    table.querySelectorAll("button[data-biz-check]").forEach(function (btn) {
+      btn.onclick = function () { checkBizStatus(btn.getAttribute("data-biz-check")); };
+    });
   });
+}
+
+async function checkBizStatus(id) {
+  const rule = bizList.find(item => item.id === id);
+  if (!rule || !nodeId) return;
+  document.querySelectorAll("[data-biz-status]").forEach(el => {
+    if (el.dataset.bizStatus === id) { el.textContent = "检查中"; el.className = "tag"; }
+  });
+  const [statsRes, versionsRes] = await Promise.all([
+    api("GET", "/api/nodes/" + encodeURIComponent(nodeId) + "/stats"),
+    api("GET", "/api/nodes/" + encodeURIComponent(nodeId) + "/versions?limit=200")
+  ]);
+  const stats = statsRes.data || {};
+  const runtime = stats.stats || {};
+  const runtimeVersion = Number(runtime.dataplane_version || 0);
+  const entry = sniList.find(item => item.id === rule.sni_entry_id);
+  const port = Number(entry && entry.bind_port || 0);
+  const versions = (versionsRes.data && versionsRes.data.items) || [];
+  const active = versions.find(item => Number(item.version) === runtimeVersion && item.status === "active");
+  const listener = (stats.listeners || []).find(item => item.expected && Number(item.expected.port) === port);
+  const expectedListener = (active && active.expected_listeners || []).some(item => Number(item.port) === port);
+  const desiredVersion = Number(rule.last_applied_version || 0);
+  let status = "无法确认", kind = "", explanation = "暂时无法读取本站运行状态，请稍后重试。";
+  if (statsRes.status === 200 && versionsRes.status === 200 && runtimeVersion > 0 && active && listener) {
+    const changedAt = [Date.parse(rule.route_updated_at), Date.parse(rule.business_updated_at)].filter(Number.isFinite);
+    const versionAt = Date.parse(active.created_at);
+    const hasNewerChanges = changedAt.some(time => Number.isFinite(versionAt) && time > versionAt);
+    const ruleIsActive = desiredVersion === runtimeVersion && expectedListener && !hasNewerChanges;
+    const portIsListening = listener.bound === true && listener.owned_by_us === true;
+    if (ruleIsActive && portIsListening) {
+      status = "已生效"; kind = "yes";
+      explanation = "规则已加载，本站 " + (entry.bind_addr || "0.0.0.0") + ":" + port + " 正在监听。";
+    } else if (!portIsListening) {
+      status = "未监听"; kind = "no";
+      explanation = "本站端口 " + port + " 没有由转发服务正常监听。";
+    } else {
+      status = "待应用"; kind = "no";
+      explanation = "当前运行配置尚未包含最新规则，请重新保存并启用转发。";
+    }
+  }
+  document.querySelectorAll("[data-biz-status]").forEach(el => {
+    if (el.dataset.bizStatus === id) { el.textContent = status; el.className = "tag" + (kind ? " " + kind : ""); }
+  });
+  const title = (rule.domains || []).join(", ") || rule.name;
+  show("dBizMsg", "《" + title + "》：" + explanation, kind === "yes" ? "ok" : kind === "no" ? "err" : "warn");
 }
 
 async function editBiz(id) {
@@ -1182,7 +1186,8 @@ async function editBiz(id) {
   $("dOriginHost").value = route.origin_host || listed.origin_host || "";
   $("dOriginPort").value = route.origin_port || listed.origin_port || "";
   const entry = sniList.find(x => x.id === route.sni_entry_id);
-  $("dListenPort").value = entry ? entry.bind_port : "8444";
+  $("dListenPort").value = entry ? entry.bind_port : String(route.origin_port || listed.origin_port || "443");
+  listenPortManuallyEdited = Number($("dListenPort").value) !== Number($("dOriginPort").value);
   $("dHcKind").value = (b.healthcheck && b.healthcheck.kind) || "tcp";
   if (route && route.sni_entry_id) $("dSniSelect").value = route.sni_entry_id;
   $("btnDBiz").textContent = "保存修改并启用";
@@ -1199,7 +1204,7 @@ async function deleteBiz(id) {
   show("dBizMsg", "正在停用转发…", "warn");
   if (editingBizId === id) $("btnCancelBizEdit").click();
   const ok = await applyForwardingChange("dBizMsg", "转发规则已删除");
-  if (!ok) show("dBizMsg", "删除记录已保存，但 HAProxy 尚未应用变更，旧转发规则仍在运行。请检查技术详情后重试发布。", "err");
+  if (!ok) show("dBizMsg", "删除记录已保存，但转发服务尚未应用变更，旧规则仍在运行。请稍后重试。", "err");
 }
 
 async function refreshDash() { await loadSNI(); await loadBiz(); renderPhases("dPhaseList", null, null); await loadReleases(); }
@@ -1240,7 +1245,7 @@ function renderReview() {
   h += "<div><b>源站地址</b>" + esc(host || "-") + "</div>";
   h += "<div><b>源站端口</b>" + esc(oport || "-") + "</div>";
   h += "<div><b>健康检查方式</b>" + esc($("hcKind").value) + "</div>";
-  h += "<div><b>TLS 模式</b>TLS 透传（证书在源站，平台不申请证书）</div>";
+  h += "<div><b>转发方式</b>加密流量转发</div>";
   h += "</div>";
 
   h += "<h2 style='font-size:14px;margin:14px 0 4px'>DNS 应指向的 IP</h2>";
