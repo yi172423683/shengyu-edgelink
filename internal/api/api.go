@@ -252,6 +252,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.Handle("GET /api/nodes/{id}/releases", s.auth(http.HandlerFunc(s.handleListReleases)))
 	m.Handle("GET /api/nodes/{id}/preview", s.auth(http.HandlerFunc(s.handlePreviewConfig)))
 	m.Handle("GET /api/nodes/{id}/stats", s.auth(http.HandlerFunc(s.handleNodeStats)))
+	m.Handle("GET /api/nodes/{id}/traffic/clients", s.auth(http.HandlerFunc(s.handleNodeClientTraffic)))
 
 	m.Handle("GET /api/businesses", s.auth(http.HandlerFunc(s.handleListBusinesses)))
 	m.Handle("POST /api/businesses", s.auth(s.csrf(http.HandlerFunc(s.handleCreateBusiness))))
@@ -263,6 +264,7 @@ func (s *Server) routes() *http.ServeMux {
 
 	m.Handle("GET /api/logs/conn", s.auth(http.HandlerFunc(s.handleQueryLogs)))
 	m.Handle("GET /api/traffic/summary", s.auth(http.HandlerFunc(s.handleTrafficSummary)))
+	m.Handle("GET /api/traffic/clients", s.auth(http.HandlerFunc(s.handleTrafficClients)))
 	m.Handle("GET /api/logs/fields", s.auth(http.HandlerFunc(s.handleLogFields)))
 	m.Handle("GET /api/diagnose", s.auth(http.HandlerFunc(s.handleDiagnose)))
 	m.Handle("GET /api/audit", s.auth(http.HandlerFunc(s.handleListAudit)))

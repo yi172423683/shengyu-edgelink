@@ -410,6 +410,8 @@ func renderState(st model.DesiredState, d Defaults) (*Rendered, error) {
 		w("    description SNI 透传入口，不终止业务 TLS\n")
 		w("    mode tcp\n")
 		w("    bind %s:%d\n", e.BindAddr, e.BindPort)
+		w("    stick-table type ip size 100k expire 30m store conn_cur,bytes_in_rate(1000),bytes_out_rate(1000)\n")
+		w("    tcp-request connection track-sc0 src\n")
 		w("    log-format \"%s\\n\"\n", lfmt)
 		w("    # 1) 预留握手观察窗口，等 ClientHello 到齐\n")
 		w("    tcp-request inspect-delay %s\n", dur(d.InspectDelay))
@@ -476,6 +478,8 @@ func renderState(st model.DesiredState, d Defaults) (*Rendered, error) {
 		w("    description TCP 端口映射，不要求客户端发送 SNI\n")
 		w("    mode tcp\n")
 		w("    bind %s:%d\n", rt.EntryAddr, rt.EntryPort)
+		w("    stick-table type ip size 100k expire 30m store conn_cur,bytes_in_rate(1000),bytes_out_rate(1000)\n")
+		w("    tcp-request connection track-sc0 src\n")
 		w("    log-format \"%s\\n\"\n", lfmt)
 		// 并发/排队限制统一落在 server 行（手册 5.2：server 的 maxconn = 发往该源站的
 		// 最大并发连接数，maxqueue = 该源站的排队上限）。这里**不再**输出 frontend maxconn：

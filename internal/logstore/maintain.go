@@ -46,13 +46,12 @@ type RetentionPolicy struct {
 // DefaultRetentionPolicy 返回保守默认值。
 //
 // 默认**带容量上限与磁盘水位**（评审 F12：只设保留天数等于把风险留给"高流量节点"）。
-// 参考量级：一台节点按 2000 连接/秒的日志量估算，一条日志约 500 字节，
-// 一天约 86 GB 原始分片；压缩后通常降到 10%~20%。QuotaBytes 默认 8 GiB
-// 表示"宁可少留几天，也不要把盘写满"。
+// 默认保留 35 天以支持月度查询。QuotaBytes 与磁盘水位仍会优先保护磁盘，
+// 极高连接量或磁盘不足时，实际可查询历史可能短于保留天数。
 func DefaultRetentionPolicy() RetentionPolicy {
 	return RetentionPolicy{
-		RetainDays:         7,
-		QuotaBytes:         8 << 30,
+		RetainDays:         35,
+		QuotaBytes:         32 << 30,
 		CompressAfterHours: 24,
 		MinFreeBytes:       2 << 30,
 	}

@@ -187,6 +187,19 @@ type Stats struct {
 	DataplaneDetail string    `json:"dataplane_detail"`
 }
 
+// ClientTraffic 是 HAProxy stick table 中某个客户端 IP 的实时计数。
+type ClientTraffic struct {
+	ClientIP          string `json:"client_ip"`
+	ActiveConnections int64  `json:"active_connections"`
+	BytesUpRate       int64  `json:"bytes_up_rate"`
+	BytesDownRate     int64  `json:"bytes_down_rate"`
+}
+
+// ClientTrafficReporter 是可选的运行态能力，供管理页面展示每个客户端 IP 的实时流量。
+type ClientTrafficReporter interface {
+	ClientTraffic(context.Context) ([]ClientTraffic, error)
+}
+
 // Applier 转发内核的统一接口。
 //
 // 契约（发布流水线依赖这些不变量，实现方必须遵守）：

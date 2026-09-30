@@ -25,6 +25,17 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
 @media(max-width:760px){body{overflow:auto}header{padding:0 14px}header .brandLockup .sub,#hdrRight,.headerActions .domain-pill{display:none}main{height:calc(100% - 56px);min-height:calc(100vh - 56px);overflow:auto}#app{min-height:calc(100vh - 56px);height:auto;overflow:visible}#sslBanner{margin:10px 12px 0}#wizard{padding:14px 12px 24px}.steps{overflow:auto}.steps span{min-width:96px}#dash.ready{height:auto;min-height:calc(100vh - 56px);display:flex;flex-direction:column;padding:10px}#dash>.menu{position:sticky;top:0;z-index:3;height:auto;flex-direction:row;align-items:center;overflow:auto;padding:7px}#dash>.menu .menuTitle{display:none}#dash>.menu button{width:auto;min-width:max-content;padding-right:12px;white-space:nowrap}#dash>.card,#dash>details{width:100%;height:auto;max-height:none;overflow:visible;padding:14px}#dash>#overviewCard{padding:0!important}.routerHome{padding:16px}.routerHomeTop{display:block}.nodeState{width:max-content;margin-top:14px}.routerBottomGrid,.charts{grid-template-columns:1fr}.overviewChart{height:205px!important}#trafficKPI{grid-template-columns:repeat(2,minmax(0,1fr))}.logToolbar input{width:100%}.loginShell{width:calc(100vw - 24px);min-height:0;margin:14px auto;grid-template-columns:1fr}.loginBrand{min-height:240px;padding:28px}.loginBrand h2{font-size:23px}.loginFeatures{display:none}.loginForm{min-height:350px;padding:30px}.releaseItem{grid-template-columns:1fr 1fr;gap:7px}.releaseResult{grid-column:1/-1;white-space:normal}table{display:block;overflow:auto;white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
 #dash>.menu button:before{content:attr(data-icon);font-size:14px;line-height:16px}
+#dash>.card,#dash>details{width:100%;max-width:none}
+.routerHome{max-width:1180px}
+.clientUsageGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0 10px}
+.clientUsageCard{min-height:100px;padding:14px 16px;background:rgba(255,255,255,.92);border:1px solid var(--b);border-radius:var(--r);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.clientUsageCard span,.clientUsageCard small{display:block;color:var(--sub);font-size:11px}
+.clientUsageCard b{display:block;margin:7px 0 2px;color:var(--a);font-size:24px;font-weight:800}
+.clientTrafficNote{margin:8px 0 12px;padding:9px 11px;color:#596779;background:#f7f9fc;border-left:3px solid #7cb7e5;font-size:11px;line-height:1.6}
+.historyLogDivider{margin-top:28px;padding-top:22px;border-top:1px solid var(--b)}
+.rateDown{color:#087f6e;font-weight:650}.rateUp{color:#ad6a15;font-weight:650}.clientIP{font-family:ui-monospace,Consolas,monospace;font-weight:650}.emptyClients{padding:28px 14px;text-align:center;color:var(--muted);background:#fff;border:1px solid var(--b);border-top:0;border-radius:0 0 var(--r) var(--r);font-size:12px}
+@media(max-width:900px){.clientUsageGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.clientUsageGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.clientUsageCard{min-height:84px;padding:11px}.clientUsageCard b{font-size:19px}}
 </style>
 </head>
 <body>
@@ -194,7 +205,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
         <button data-menu-target="overviewCard" data-section="overview" data-icon="⌂" class="active">总览</button>
         <button data-menu-target="businessCard" data-section="rules" data-icon="≡">转发规则</button>
         <button data-menu-target="trafficCard" data-section="traffic" data-icon="⌁">流量监控</button>
-        <button data-menu-target="logsCard" data-section="logs" data-icon="▤">连接日志</button>
+        <button data-menu-target="logsCard" data-section="logs" data-icon="▤">实时用户与日志</button>
         <button data-menu-target="publishCard" data-section="publish" data-icon="↻">发布记录</button>
         <button data-menu-target="settingsDetails" data-section="settings" data-icon="⚙">节点与入口</button>
         <button data-menu-target="accountPanel" data-section="account" data-icon="●">账号与安全</button>
@@ -272,7 +283,18 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
       </div>
 
       <div class="card" id="logsCard" data-section="logs">
-        <div class="panelHeading"><div><h2>日志与诊断</h2><div class="desc">把 HAProxy 的原始连接记录变成可检索的运行证据，定位“慢在哪里、断在哪里、是否源站问题”。</div></div><div class="panelBadge">最近 1 小时</div></div>
+        <div class="panelHeading"><div><h2>实时用户与流量</h2><div class="desc">按客户端 IP 查看当前连接和实时上下行速率，并汇总今天、近 7 天和近 30 天已记录流量。</div></div><div class="panelBadge" id="clientTrafficAt">等待采样</div></div>
+        <div class="clientUsageGrid">
+          <div class="clientUsageCard"><span>当前在线 IP</span><b id="liveClientCount">-</b><small>有活动连接的客户端</small></div>
+          <div class="clientUsageCard"><span>今天流量</span><b id="clientTodayGB">-</b><small>已完成连接 · GB</small></div>
+          <div class="clientUsageCard"><span>近 7 天流量</span><b id="clientWeekGB">-</b><small>自然日累计 · GB</small></div>
+          <div class="clientUsageCard"><span>近 30 天流量</span><b id="clientMonthGB">-</b><small>自然日累计 · GB</small></div>
+        </div>
+        <div class="clientTrafficNote">实时速率来自 HAProxy 客户端计数表，每 5 秒刷新。周期总量来自已完成连接日志；仍在线的长连接会在结束后计入周期统计。</div>
+        <div id="clientTrafficMsg" class="msg"></div>
+        <div class="tableHeading"><div><strong>当前活跃客户端</strong><span>下载 / 上传按 IP 汇总 · 排序以当前吞吐为准</span></div><button id="btnRefreshClientTraffic" class="ghost">立即刷新</button></div>
+        <div id="clientTrafficTable"></div>
+        <div class="historyLogDivider"><div class="panelHeading"><div><h2>连接日志与诊断</h2><div class="desc">查看已结束连接的源站、耗时、结果和字节用量。</div></div><div class="panelBadge">连接结束后写入</div></div></div>
         <div class="logToolbar">
           <input id="logSniFilter" placeholder="按域名 / SNI 筛选">
           <input id="logClientFilter" placeholder="按客户端 IP 筛选">
@@ -356,7 +378,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
 const $ = id => document.getElementById(id);
 let csrf = "", nodeId = "", customerId = "";
 let meta = null, currentUser = null, wizardStep = 1, sniList = [], bizList = [], editingBizId = "";
-let trafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0, liveTrafficPoints = [], latestDailyTraffic = [];
+let trafficTimer = null, clientTrafficTimer = null, previousTraffic = null, lastTrafficSummaryAt = 0, lastClientSummaryAt = 0, liveTrafficPoints = [], latestDailyTraffic = [], clientTrafficPeriods = {};
 
 // 发布阶段：顺序与服务端真实执行顺序一致。
 // 界面只是把服务端返回的 phase 映射成"走到哪一步"，不臆造状态。
@@ -504,8 +526,11 @@ async function boot() {
     await loadUsers();
     await loadLogs();
     await loadTraffic(true);
+    await loadClientTraffic(true);
     if (trafficTimer) clearInterval(trafficTimer);
     trafficTimer = setInterval(() => loadTraffic(false), 5000);
+    if (clientTrafficTimer) clearInterval(clientTrafficTimer);
+    clientTrafficTimer = setInterval(() => loadClientTraffic(false), 5000);
     renderOverview();
     applyRoleView();
     const firstMenu = document.querySelector("[data-menu-target='overviewCard']");
@@ -614,6 +639,54 @@ function bytesText(n) {
   return n.toFixed(i ? 2 : 0) + " " + units[i];
 }
 
+function gigabytesText(n) { return (Number(n || 0) / 1000000000).toFixed(2) + " GB"; }
+
+async function loadClientTraffic(refreshPeriods) {
+  if (!nodeId) return;
+  const refreshSummary = refreshPeriods || Date.now() - lastClientSummaryAt >= 60000;
+  const livePromise = api("GET", "/api/nodes/" + nodeId + "/traffic/clients");
+  const summaryPromise = refreshSummary
+    ? Promise.all(["today", "7d", "30d"].map(period => api("GET", "/api/traffic/clients?period=" + period + "&node_id=" + encodeURIComponent(nodeId))))
+    : Promise.resolve(null);
+  const [live, summaries] = await Promise.all([livePromise, summaryPromise]);
+  let summaryFailure = false;
+  if (summaries) {
+    clientTrafficPeriods = {};
+    ["today", "7d", "30d"].forEach((period, index) => {
+      if (summaries[index].status === 200) clientTrafficPeriods[period] = summaries[index].data;
+      else summaryFailure = true;
+    });
+    lastClientSummaryAt = Date.now();
+  }
+  if (live.status !== 200) {
+    show("clientTrafficMsg", errText(live, "读取客户端实时流量失败"), "err");
+    return;
+  }
+  const liveRows = live.data && live.data.items || [];
+  const today = clientTrafficPeriods.today && clientTrafficPeriods.today.total || {};
+  const week = clientTrafficPeriods["7d"] && clientTrafficPeriods["7d"].total || {};
+  const month = clientTrafficPeriods["30d"] && clientTrafficPeriods["30d"].total || {};
+  $("liveClientCount").textContent = String(liveRows.filter(x => Number(x.active_connections || 0) > 0).length);
+  $("clientTodayGB").textContent = gigabytesText(Number(today.bytes_up || 0) + Number(today.bytes_down || 0));
+  $("clientWeekGB").textContent = gigabytesText(Number(week.bytes_up || 0) + Number(week.bytes_down || 0));
+  $("clientMonthGB").textContent = gigabytesText(Number(month.bytes_up || 0) + Number(month.bytes_down || 0));
+  $("clientTrafficAt").textContent = "实时更新 " + new Date().toLocaleTimeString();
+  if (!live.data.available) show("clientTrafficMsg", live.data.note || "客户端实时流量暂不可用", "warn");
+  else if (summaryFailure) show("clientTrafficMsg", "部分周期统计暂不可用；在线速率仍正常更新。", "warn");
+  else show("clientTrafficMsg", "", "");
+  const byIP = new Map();
+  liveRows.forEach(row => byIP.set(row.client_ip, {ip:row.client_ip, active:Number(row.active_connections||0), up:Number(row.bytes_up_rate||0), down:Number(row.bytes_down_rate||0)}));
+  const byPeriod = period => new Map(((clientTrafficPeriods[period] && clientTrafficPeriods[period].items) || []).map(row => [row.client_ip, row]));
+  const todayByIP = byPeriod("today"), weekByIP = byPeriod("7d"), monthByIP = byPeriod("30d");
+  const rows = Array.from(byIP.values()).sort((a,b) => (b.up+b.down)-(a.up+a.down));
+  let html = "<table><tr><th>客户端 IP</th><th>连接数</th><th>实时下载</th><th>实时上传</th><th>今天</th><th>近 7 天</th><th>近 30 天</th></tr>";
+  for (const row of rows) {
+    const t=todayByIP.get(row.ip)||{}, w=weekByIP.get(row.ip)||{}, m=monthByIP.get(row.ip)||{};
+    html += "<tr><td><span class='clientIP'>"+esc(row.ip)+"</span></td><td>"+row.active+"</td><td class='rateDown'>↓ "+esc(bytesText(row.down))+"/s</td><td class='rateUp'>↑ "+esc(bytesText(row.up))+"/s</td><td>"+esc(gigabytesText(Number(t.bytes_up||0)+Number(t.bytes_down||0)))+"</td><td>"+esc(gigabytesText(Number(w.bytes_up||0)+Number(w.bytes_down||0)))+"</td><td>"+esc(gigabytesText(Number(m.bytes_up||0)+Number(m.bytes_down||0)))+"</td></tr>";
+  }
+  $("clientTrafficTable").innerHTML = html + "</table>" + (rows.length ? "" : "<div class='emptyClients'>当前没有活动客户端连接。</div>");
+}
+
 function prepareCanvas(canvas) {
   if (!canvas) return null;
   const rect = canvas.getBoundingClientRect();
@@ -694,6 +767,7 @@ async function loadTraffic(forceHistory) {
 $("btnRefreshLogs").onclick = loadLogs;
 $("btnApplyLogFilter").onclick = loadLogs;
 $("btnRefreshTraffic").onclick = () => loadTraffic(true);
+$("btnRefreshClientTraffic").onclick = () => loadClientTraffic(true);
 $("btnLogout").onclick = async () => {
   await api("POST", "/api/logout");
   location.reload();

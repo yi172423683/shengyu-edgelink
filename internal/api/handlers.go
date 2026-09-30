@@ -931,6 +931,33 @@ func (s *Server) handleNodeStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+func (s *Server) handleNodeClientTraffic(w http.ResponseWriter, r *http.Request) {
+	nodeID := pathID(r)
+	if _, err := s.Store.GetNode(nodeID); err != nil {
+		mapStoreErr(w, err, "节点")
+		return
+	}
+	if s.NodeID != nodeID || s.Pipeline == nil || s.Pipeline.Applier == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "items": []dataplane.ClientTraffic{}, "note": "远程节点尚未上报客户端实时流量"})
+		return
+	}
+	reporter, ok := s.Pipeline.Applier.(dataplane.ClientTrafficReporter)
+	if !ok {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "items": []dataplane.ClientTraffic{}, "note": "当前数据面不支持客户端实时流量"})
+		return
+	}
+	items, err := reporter.ClientTraffic(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusServiceUnavailable, "客户端实时流量暂不可用", "client_traffic_unavailable", err.Error())
+		return
+	}
+	active := items[:0]
+	for _, item := range items {
+		if item.ActiveConnections > 0 || item.BytesUpRate > 0 || item.BytesDownRate > 0 { active = append(active, item) }
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"available": true, "at": s.now(), "items": active})
+}
+
 // ============================== 业务 ==============================
 
 func (s *Server) handleListBusinesses(w http.ResponseWriter, r *http.Request) {
@@ -1415,6 +1442,37 @@ func (s *Server) handleTrafficSummary(w http.ResponseWriter, r *http.Request) {
 		"from": q.From, "to": q.To, "days": days, "total": total, "daily": buckets,
 		"geo": map[string]any{"available": false, "note": "当前版本保留客户端 IP；地区需要配置 GeoIP 数据库后启用。未知地址会保留为未知。"},
 	})
+}
+
+func (s *Server) handleTrafficClients(w http.ResponseWriter, r *http.Request) {
+	now := s.now()
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	period := r.URL.Query().Get("period")
+	from := dayStart
+	switch period {
+	case "", "today":
+		period = "today"
+	case "7d":
+		from = dayStart.AddDate(0, 0, -6)
+	case "30d":
+		from = dayStart.AddDate(0, 0, -29)
+	default:
+		writeErr(w, http.StatusBadRequest, "period 仅支持 today、7d、30d", "bad_period", "")
+		return
+	}
+	q := logstore.Query{From: from, To: now, NodeID: r.URL.Query().Get("node_id"), SNI: r.URL.Query().Get("sni")}
+	items, err := s.Logs.TrafficByClient(r.Context(), q)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error(), "traffic_clients_failed", err.Error())
+		return
+	}
+	var total logstore.ClientTrafficBucket
+	for _, item := range items {
+		total.Connections += item.Connections
+		total.BytesUp += item.BytesUp
+		total.BytesDown += item.BytesDown
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"period": period, "from": from, "to": now, "total": total, "items": items})
 }
 
 func parseLogQuery(r *http.Request) (logstore.Query, error) {

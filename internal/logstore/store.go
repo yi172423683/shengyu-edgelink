@@ -603,6 +603,14 @@ type TrafficBucket struct {
 	BytesDown   int64  `json:"bytes_down"`
 }
 
+// ClientTrafficBucket 是指定时间段内按客户端 IP 聚合的连接用量。
+type ClientTrafficBucket struct {
+	ClientIP    string `json:"client_ip"`
+	Connections int64  `json:"connections"`
+	BytesUp     int64  `json:"bytes_up"`
+	BytesDown   int64  `json:"bytes_down"`
+}
+
 // TrafficSummary 汇总指定时间段内的连接数和上下行流量，最多建议查询 31 天。
 func (s *Store) TrafficSummary(ctx context.Context, q Query) ([]TrafficBucket, error) {
 	if q.From.IsZero() || q.To.IsZero() || q.To.Before(q.From) {
@@ -640,6 +648,90 @@ func (s *Store) TrafficSummary(ctx context.Context, q Query) ([]TrafficBucket, e
 	out := make([]TrafficBucket, 0, len(byDay))
 	for _, b := range byDay { out = append(out, *b) }
 	sort.Slice(out, func(i, j int) bool { return out[i].Day < out[j].Day })
+	return out, nil
+}
+
+// TrafficByClient 汇总指定时间段的客户端 IP 用量，最多返回前 200 个 IP。
+func (s *Store) TrafficByClient(ctx context.Context, q Query) ([]ClientTrafficBucket, error) {
+	if q.From.IsZero() || q.To.IsZero() || q.To.Before(q.From) {
+		return nil, fmt.Errorf("流量统计时间范围无效")
+	}
+	parts := s.PartitionsBetween(KindConn, q.From, q.To)
+	byClient := map[string]*ClientTrafficBucket{}
+	for _, p := range parts {
+		path := p.Path
+		var cleanup func()
+		if p.Compressed {
+			tmp, err := materializeCompressed(p.Path)
+			if err != nil {
+				continue
+			}
+			path, cleanup = tmp, func() { _ = os.Remove(tmp) }
+		}
+		d, release, _, err := s.acquireReader(path)
+		if err != nil {
+			if cleanup != nil {
+				cleanup()
+			}
+			continue
+		}
+		if ok, _ := hasConnTable(d); !ok {
+			release()
+			if cleanup != nil {
+				cleanup()
+			}
+			continue
+		}
+		where, args := buildWhere(q)
+		rows, err := d.QueryContext(ctx, `SELECT client_ip, COUNT(*), COALESCE(SUM(bytes_up),0), COALESCE(SUM(bytes_down),0)
+			FROM conn_log `+where+` AND client_ip<>'' GROUP BY client_ip`, args...)
+		if err == nil {
+			for rows.Next() {
+				var ip string
+				var conns, up, down int64
+				if err := rows.Scan(&ip, &conns, &up, &down); err != nil {
+					_ = rows.Close()
+					release()
+					if cleanup != nil {
+						cleanup()
+					}
+					return nil, err
+				}
+				b := byClient[ip]
+				if b == nil {
+					b = &ClientTrafficBucket{ClientIP: ip}
+					byClient[ip] = b
+				}
+				b.Connections += conns
+				b.BytesUp += up
+				b.BytesDown += down
+			}
+			if err := rows.Err(); err != nil {
+				_ = rows.Close()
+				release()
+				if cleanup != nil {
+					cleanup()
+				}
+				return nil, err
+			}
+			_ = rows.Close()
+		}
+		release()
+		if cleanup != nil {
+			cleanup()
+		}
+		if err != nil {
+			return nil, fmt.Errorf("logstore: 客户端流量分片汇总失败: %w", err)
+		}
+	}
+	out := make([]ClientTrafficBucket, 0, len(byClient))
+	for _, b := range byClient { out = append(out, *b) }
+	sort.Slice(out, func(i, j int) bool {
+		li, lj := out[i].BytesUp+out[i].BytesDown, out[j].BytesUp+out[j].BytesDown
+		if li == lj { return out[i].ClientIP < out[j].ClientIP }
+		return li > lj
+	})
+	if len(out) > 200 { out = out[:200] }
 	return out, nil
 }
 

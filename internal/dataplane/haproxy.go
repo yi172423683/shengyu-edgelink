@@ -1098,6 +1098,106 @@ func (h *HAProxy) Stats(ctx context.Context) (Stats, error) {
 	return s, nil
 }
 
+// ClientTraffic 从各转发 frontend 的 stick table 读取客户端实时字节速率。
+func (h *HAProxy) ClientTraffic(ctx context.Context) ([]ClientTraffic, error) {
+	ver, _ := h.ActiveVersion(ctx)
+	var sock string
+	var stat string
+	var lastErr error
+	for _, candidate := range h.statsSocketCandidates(ver) {
+		if candidate == "" {
+			continue
+		}
+		stat, lastErr = h.statsCommand(ctx, candidate, "show stat\n")
+		if lastErr == nil {
+			sock = candidate
+			break
+		}
+	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("读取 HAProxy 统计接口失败: %w", lastErr)
+	}
+	frontends := parseTrafficFrontends(stat)
+	byIP := map[string]*ClientTraffic{}
+	for _, frontend := range frontends {
+		table, err := h.statsCommand(ctx, sock, "show table "+frontend+"\n")
+		if err != nil {
+			return nil, fmt.Errorf("读取客户端流量表 %s 失败: %w", frontend, err)
+		}
+		for _, row := range parseClientTrafficTable(table) {
+			item := byIP[row.ClientIP]
+			if item == nil {
+				item = &ClientTraffic{ClientIP: row.ClientIP}
+				byIP[row.ClientIP] = item
+			}
+			item.ActiveConnections += row.ActiveConnections
+			item.BytesUpRate += row.BytesUpRate
+			item.BytesDownRate += row.BytesDownRate
+		}
+	}
+	out := make([]ClientTraffic, 0, len(byIP))
+	for _, item := range byIP {
+		out = append(out, *item)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ActiveConnections == out[j].ActiveConnections { return out[i].BytesUpRate+out[i].BytesDownRate > out[j].BytesUpRate+out[j].BytesDownRate }
+		return out[i].ActiveConnections > out[j].ActiveConnections
+	})
+	return out, nil
+}
+
+func parseTrafficFrontends(csv string) []string {
+	lines := strings.Split(strings.TrimSpace(csv), "\n")
+	if len(lines) < 2 { return nil }
+	header := splitCSVLine(strings.TrimPrefix(lines[0], "# "))
+	idx := map[string]int{}
+	for i, name := range header { idx[strings.TrimSpace(name)] = i }
+	pxnameIndex, hasPXName := idx["pxname"]
+	svnameIndex, hasSVName := idx["svname"]
+	if !hasPXName || !hasSVName {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, line := range lines[1:] {
+		fields := splitCSVLine(line)
+		if svnameIndex >= len(fields) || pxnameIndex >= len(fields) || strings.TrimSpace(fields[svnameIndex]) != "FRONTEND" {
+			continue
+		}
+		name := strings.TrimSpace(fields[pxnameIndex])
+		if (strings.HasPrefix(name, "fe_sni_") || strings.HasPrefix(name, "fe_tcp_")) && !seen[name] {
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func parseClientTrafficTable(raw string) []ClientTraffic {
+	var out []ClientTraffic
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "0x") { continue }
+		var item ClientTraffic
+		for _, field := range strings.Fields(line) {
+			key, value, ok := strings.Cut(strings.Trim(field, ","), "=")
+			if !ok { continue }
+			switch key {
+			case "key":
+				item.ClientIP = value
+			case "conn_cur":
+				item.ActiveConnections, _ = strconv.ParseInt(value, 10, 64)
+			case "bytes_in_rate(1000)":
+				item.BytesUpRate, _ = strconv.ParseInt(value, 10, 64)
+			case "bytes_out_rate(1000)":
+				item.BytesDownRate, _ = strconv.ParseInt(value, 10, 64)
+			}
+		}
+		if item.ClientIP != "" { out = append(out, item) }
+	}
+	return out
+}
+
 // statsSocketCandidates 返回应当尝试连接的统计套接字，按优先级排列。
 func (h *HAProxy) statsSocketCandidates(runningVersion int) []string {
 	var out []string
