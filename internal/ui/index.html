@@ -358,6 +358,49 @@
     #trafficKPI { grid-template-columns:repeat(2,minmax(0,1fr)); }
   }
 </style>
+<style>
+  /* Router dashboard v2: the home view is a monitoring surface, not a form. */
+  .overviewCard > .welcomePanel,
+  .overviewCard > .overviewActions { display:none !important; }
+  .routerHome { padding:30px 34px 38px; background:#f7f9fc; }
+  .routerHomeTop { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:24px; }
+  .eyebrow { color:#65809d; font-size:10px; font-weight:750; letter-spacing:.14em; text-transform:uppercase; }
+  .routerHome h2 { margin:7px 0 7px; color:#142c43; font-size:25px; letter-spacing:-.025em; }
+  .routerHomeTop p { max-width:640px; margin:0; color:#718197; font-size:12px; line-height:1.7; }
+  .nodeState { min-width:164px; display:flex; align-items:center; gap:10px; padding:12px 14px; color:#21435b; background:#fff; border:1px solid #d9e4ee; border-radius:8px; }
+  .nodeStateDot { width:9px; height:9px; flex:0 0 auto; background:#21a47a; border-radius:50%; box-shadow:0 0 0 4px #e5f5ef; }
+  .nodeState b, .nodeState small { display:block; }
+  .nodeState b { font-size:12px; }
+  .nodeState small { margin-top:3px; color:#8392a4; font-size:10px; }
+  .routerMetricGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+  .routerMetric { min-height:94px; padding:16px; background:#fff; border:1px solid #dce5ee; border-radius:8px; }
+  .routerMetric span, .routerMetric small { display:block; color:#78899c; font-size:11px; }
+  .routerMetric b { display:block; margin:9px 0 4px; color:#142c43; font-size:23px; letter-spacing:-.02em; }
+  .monitorPanel, .statusList { background:#fff; border:1px solid #dce5ee; border-radius:8px; }
+  .monitorPanel { padding:17px 18px 12px; }
+  .monitorPanelHead, .statusListHead { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .monitorPanelHead strong, .statusListHead strong { color:#1d344b; font-size:13px; }
+  .monitorPanelHead span, .statusListHead span { color:#8a98a8; font-size:11px; }
+  .monitorPanelHead button { min-height:32px; padding:6px 10px; font-size:11px; }
+  .overviewChart { width:100%; height:270px; margin-top:10px; background:#fff; }
+  .routerBottomGrid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+  .statusList { padding:17px 18px; }
+  .statusListHead { padding-bottom:12px; border-bottom:1px solid #edf1f5; }
+  .statusRow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #edf1f5; color:#556b81; font-size:12px; }
+  .statusRow:last-child { border-bottom:0; padding-bottom:0; }
+  .statusGood { color:#168463; font-size:11px; font-weight:700; }
+  #overviewNotice { min-height:68px; padding:17px 0 2px; color:#728196; font-size:12px; line-height:1.7; }
+  @media (max-width:899px) {
+    .routerHome { padding:22px; }
+    .routerMetricGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+  @media (max-width:600px) {
+    .routerHomeTop { display:block; }
+    .nodeState { margin-top:16px; }
+    .routerMetricGrid, .routerBottomGrid { grid-template-columns:1fr; }
+    .overviewChart { height:210px; }
+  }
+</style>
 </head>
 <body>
 <header>
@@ -533,6 +576,30 @@
       </nav>
 
       <div class="card" id="overviewCard" data-section="overview">
+        <section class="routerHome">
+          <div class="routerHomeTop">
+            <div>
+              <div class="eyebrow">节点监控 / OVERVIEW</div>
+              <h2>边缘节点状态</h2>
+              <p>实时查看转发节点、源站连接和带宽变化。配置操作放在左侧工作区，需要时再进入。</p>
+            </div>
+            <div class="nodeState"><span class="nodeStateDot"></span><div><b id="overviewHealth">运行正常</b><small id="overviewLastSeen">数据面在线</small></div></div>
+          </div>
+          <div class="routerMetricGrid">
+            <div class="routerMetric"><span>在线连接</span><b id="overviewConnections">-</b><small>当前会话</small></div>
+            <div class="routerMetric"><span>实时吞吐</span><b id="overviewThroughput">-</b><small>上下行合计</small></div>
+            <div class="routerMetric"><span>业务规则</span><b id="overviewRules">-</b><small>已配置路由</small></div>
+            <div class="routerMetric"><span>源站可用</span><b id="overviewOriginStatus">-</b><small>健康检查结果</small></div>
+          </div>
+          <div class="monitorPanel">
+            <div class="monitorPanelHead"><div><strong>实时带宽</strong><span id="overviewTrafficAt">等待数据</span></div><button id="btnOverviewTraffic" class="ghost">查看详细流量</button></div>
+            <canvas id="overviewLiveChart" class="chart overviewChart" width="1000" height="270"></canvas>
+          </div>
+          <div class="routerBottomGrid">
+            <div class="statusList"><div class="statusListHead"><strong>运行检查</strong><span>最近一次采样</span></div><div class="statusRow"><span>管理服务</span><b class="statusGood">正常</b></div><div class="statusRow"><span>HAProxy 数据面</span><b class="statusGood">正常</b></div><div class="statusRow\"><span>配置版本</span><b id="overviewConfigVersion">-</b></div></div>
+            <div class="statusList"><div class="statusListHead"><strong>需要关注</strong><span>根据当前数据自动提示</span></div><div id="overviewNotice" class="noticeEmpty">暂无异常提示</div></div>
+          </div>
+        </section>
         <div class="welcomePanel">
           <h2>欢迎回来，<span id="welcomeUser">管理员</span></h2>
           <p>节点运行状态、转发规则和连接质量都集中在这里。</p>
@@ -542,7 +609,7 @@
             <div class="overviewStat">当前版本<b id="overviewVersion">-</b><span>已发布配置版本</span></div>
           </div>
         </div>
-        <div class="overviewActions"><div><strong>常用操作</strong><span>从这里开始处理日常运维</span></div><div class="row"><button id="btnOverviewRules">查看转发规则</button><button id="btnOverviewTraffic" class="ghost">查看流量监控</button></div></div>
+        <div class="overviewActions"><div><strong>常用操作</strong><span>从这里开始处理日常运维</span></div><div class="row"><button id="btnOverviewRules">查看转发规则</button></div></div>
       </div>
 
       <details class="advanced" id="settingsDetails" data-section="settings">
@@ -846,6 +913,18 @@ function renderOverview() {
   $("overviewBizCount").textContent = String((meta && meta.business_count) || 0);
   $("overviewStatus").textContent = meta && meta.initialized ? "运行中" : "待配置";
   $("overviewVersion").textContent = node && node.applied_version ? "v" + node.applied_version : "未发布";
+  if ($("overviewRules")) $("overviewRules").textContent = String((meta && meta.business_count) || 0);
+  if ($("overviewConfigVersion")) $("overviewConfigVersion").textContent = node && node.applied_version ? "v" + node.applied_version : "未发布";
+  if ($("overviewHealth")) {
+    const health = node && node.health ? String(node.health) : "unknown";
+    $("overviewHealth").textContent = health === "online" ? "运行正常" : (health === "degraded" ? "需要关注" : "等待节点上报");
+    $("overviewHealth").className = health === "online" ? "statusGood" : "";
+  }
+  if ($("overviewLastSeen")) $("overviewLastSeen").textContent = node && node.last_heartbeat ? String(node.last_heartbeat) : "数据面在线";
+  if ($("overviewNotice")) {
+    const health = node && node.health ? String(node.health) : "unknown";
+    $("overviewNotice").textContent = health === "online" ? "暂无异常提示" : "节点状态尚未确认，发布后请检查数据面心跳和源站健康检查。";
+  }
 }
 
 function applyRoleView() {
@@ -973,6 +1052,15 @@ async function loadTraffic(forceHistory) {
   previousTraffic = { at: now, in: Number(st.bytes_in || 0), out: Number(st.bytes_out || 0) };
   liveTrafficPoints.push({up: upRate, down: downRate}); if (liveTrafficPoints.length > 60) liveTrafficPoints.shift();
   drawTrafficLine($("liveChart"), liveTrafficPoints);
+  drawTrafficLine($("overviewLiveChart"), liveTrafficPoints);
+  if ($("overviewConnections")) $("overviewConnections").textContent = String(st.active_conns || 0);
+  if ($("overviewThroughput")) $("overviewThroughput").textContent = bytesText(upRate + downRate) + "/s";
+  if ($("overviewRules")) $("overviewRules").textContent = String((meta && meta.business_count) || 0);
+  if ($("overviewOriginStatus")) {
+    const originUp = Number(st.backend_up || 0), originDown = Number(st.backend_down || 0);
+    $("overviewOriginStatus").textContent = originUp + " / " + (originUp + originDown);
+  }
+  if ($("overviewTrafficAt")) $("overviewTrafficAt").textContent = new Date().toLocaleTimeString() + " · 上行 " + bytesText(upRate) + "/s · 下行 " + bytesText(downRate) + "/s";
   $("trafficAt").textContent = "实时刷新 · " + new Date().toLocaleTimeString() + " · 速率 " + rate;
   $("trafficKPI").innerHTML = [
     ["在线连接", st.active_conns || 0], ["累计连接", st.total_conns || 0],
