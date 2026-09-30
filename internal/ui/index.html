@@ -401,6 +401,74 @@
     .overviewChart { height:210px; }
   }
 </style>
+<style>
+  /* Fluent shell: Mica background, Acrylic chrome, and Win11 accent blue. */
+  :root {
+    --win-accent:#0078D4; --win-accent-hover:#1A86DC; --win-accent-press:#006CC9;
+    --win-accent-soft:rgba(0,120,212,.10); --win-mica:linear-gradient(180deg,#f6f8fc 0%,#eef1f7 100%);
+    --win-bg:#eef1f7; --win-surface:#fff; --win-surface-2:#f7f9fc; --win-border:#e6e9f0;
+    --win-border-strong:#d7dce6; --win-text:#1a1a1f; --win-text-2:#42424a; --win-text-sub:#5b5b66;
+    --win-radius:8px; --win-radius-lg:12px; --win-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(16,24,40,.08);
+  }
+  body { color:var(--win-text); background:var(--win-mica); font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif; }
+  header { height:56px; min-height:56px; padding:0 24px; background:rgba(255,255,255,.55); border-bottom:1px solid rgba(16,24,40,.06); box-shadow:none; backdrop-filter:blur(30px) saturate(1.3); }
+  header > div:first-child::before { width:34px; height:34px; color:#fff; background:linear-gradient(135deg,#0078D4 0%,#2B88D8 100%); border-radius:8px; box-shadow:0 4px 14px rgba(0,120,212,.35); }
+  header h1 { color:var(--win-text); font-size:15px; font-weight:700; }
+  header .sub { color:var(--win-text-sub); }
+  main { height:calc(100vh - 56px); background:transparent; }
+  #dash.ready { grid-template-columns:220px minmax(0,1fr); gap:16px; padding:16px 20px 18px; }
+  #dash > .menu { padding:14px 8px; background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.55); border-radius:var(--win-radius-lg); box-shadow:var(--win-shadow); backdrop-filter:blur(40px) saturate(1.4); }
+  #dash > .menu .menuTitle { display:flex; align-items:center; gap:10px; min-height:48px; padding:5px 10px 18px; color:var(--win-text); }
+  #dash > .menu .menuTitle::after { display:none; }
+  #dash > .menu .menuTitle strong, #dash > .menu .menuTitle small { display:block; }
+  #dash > .menu .menuTitle strong { font-size:14px; font-weight:700; }
+  #dash > .menu .menuTitle small { margin-top:2px; color:#7f8794; font-size:10px; font-weight:500; }
+  .brand-logo { width:34px; height:34px; display:flex; align-items:center; justify-content:center; flex:none; color:#fff; background:linear-gradient(135deg,#0078D4 0%,#2B88D8 100%); border-radius:8px; box-shadow:0 4px 14px rgba(0,120,212,.35); font-size:11px; font-weight:800; }
+  #dash > .menu button { min-height:44px; padding:9px 12px; color:#5b6470; border-radius:8px; font-size:13px; font-weight:500; }
+  #dash > .menu button::before { width:18px; height:18px; margin-right:9px; color:#8a8f99; background:transparent; border-radius:5px; content:"•"; font-size:16px; line-height:14px; text-align:center; }
+  #dash > .menu button.active, #dash > .menu button:hover { color:var(--win-accent); background:var(--win-accent-soft); border-color:transparent; font-weight:600; }
+  #dash > .menu button.active::before, #dash > .menu button:hover::before { color:var(--win-accent); background:transparent; }
+  #dash > .menu button[data-section="logs"]::after { display:none; }
+  #dash > .menu::before, #dash > .menu::after { display:none; }
+  #dash > .card, #dash > details { width:min(100%,1180px); justify-self:center; border:1px solid var(--win-border); border-radius:var(--win-radius-lg); box-shadow:var(--win-shadow); }
+  #overviewCard { padding:20px !important; background:transparent; border:0 !important; box-shadow:none !important; }
+  .routerHome { padding:24px 26px 28px; background:rgba(255,255,255,.78); border:1px solid rgba(255,255,255,.72); border-radius:var(--win-radius-lg); box-shadow:var(--win-shadow); backdrop-filter:blur(18px) saturate(1.15); }
+  .routerHome h2 { color:var(--win-text); font-weight:700; }
+  .routerHomeTop p { color:var(--win-text-sub); }
+  .eyebrow { color:var(--win-accent); }
+  .nodeState { border-color:var(--win-border); border-radius:var(--win-radius); box-shadow:var(--win-shadow-sm); }
+  .nodeStateDot { background:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.18); }
+  .routerMetric { min-height:108px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px; border-color:var(--win-border); border-radius:var(--win-radius); box-shadow:var(--win-shadow-sm); }
+  .routerMetric span, .routerMetric small { color:var(--win-text-sub); }
+  .routerMetric b { color:var(--win-accent); font-size:28px; font-weight:800; }
+  .metricIcon { width:46px; height:46px; display:flex !important; align-items:center; justify-content:center; flex:none; color:var(--win-accent) !important; background:var(--win-accent-soft); border-radius:10px; font-size:22px !important; font-weight:700; }
+  .monitorPanel, .statusList { border-color:var(--win-border); border-radius:var(--win-radius); box-shadow:var(--win-shadow-sm); }
+  .monitorPanelHead strong, .statusListHead strong { color:var(--win-text-2); }
+  .monitorPanelHead button, button { border-radius:var(--win-radius); }
+  button { background:var(--win-accent); font-weight:600; }
+  button:hover { background:var(--win-accent-hover); }
+  button:active { background:var(--win-accent-press); }
+  button.ghost { color:var(--win-accent); background:var(--win-accent-soft); border-color:transparent; }
+  button.ghost:hover { color:var(--win-accent); background:rgba(0,120,212,.16); }
+  input, select { border-color:var(--win-border-strong); border-radius:var(--win-radius); }
+  input:focus, select:focus { border-color:var(--win-accent); outline:2px solid rgba(0,120,212,.18); }
+  table { border-color:var(--win-border); border-radius:var(--win-radius); }
+  th { color:var(--win-text-2); background:#f7f9fc; }
+  .roleTag { padding:4px 9px; color:var(--win-accent); background:var(--win-accent-soft); border:1px solid rgba(0,120,212,.14); border-radius:999px; font-size:11px; font-weight:600; }
+  .domain-pill { max-width:220px; overflow:hidden; padding:5px 12px; color:var(--win-accent); background:var(--win-accent-soft); border-radius:999px; font-family:ui-monospace,Consolas,monospace; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+  #hdrRight { max-width:340px; }
+  .loginShell { width:min(1000px,calc(100vw - 48px)); min-height:540px; margin:0 auto; padding:0; background:rgba(255,255,255,.76); border:1px solid rgba(255,255,255,.82); border-radius:var(--win-radius-lg); box-shadow:var(--win-shadow); backdrop-filter:blur(22px) saturate(1.25); }
+  .loginBrand { min-height:540px; padding:54px; color:var(--win-text); background:rgba(232,241,251,.7); border-right:1px solid rgba(0,120,212,.10); }
+  .loginBrand h2 { color:var(--win-text); font-size:28px; }
+  .loginBrand p, .loginFeatures { color:var(--win-text-sub); }
+  .loginFeatures span::before { background:var(--win-accent); }
+  .loginForm { min-height:540px; padding:64px 68px; background:rgba(255,255,255,.82); }
+  .loginForm h2 { color:var(--win-text); }
+  .loginForm .desc { color:var(--win-text-sub); }
+  .brandMark { color:#fff; background:linear-gradient(135deg,#0078D4 0%,#2B88D8 100%); border-radius:8px; box-shadow:0 4px 14px rgba(0,120,212,.35); }
+  @media (max-width:899px) { #dash.ready { padding:12px; } #dash > .card, #dash > details { width:100%; } }
+  @media (max-width:760px) { header { padding:0 16px; } .headerActions #hdrRight, .headerActions .domain-pill { display:none; } .loginShell { width:calc(100vw - 28px); } .loginBrand, .loginForm { min-height:0; } }
+</style>
 </head>
 <body>
 <header>
@@ -408,7 +476,7 @@
     <h1>盛愈边缘网关</h1>
     <div class="sub">边缘转发控制台 · 单节点</div>
   </div>
-  <div class="headerActions"><div class="sub" id="hdrRight"></div><button id="btnLogout" class="ghost" style="display:none">退出登录</button></div>
+  <div class="headerActions"><span id="headerRole" class="roleTag">管理台</span><span id="headerDomain" class="domain-pill">本机节点</span><div class="sub" id="hdrRight"></div><button id="btnLogout" class="ghost" style="display:none">退出登录</button></div>
 </header>
 <main>
 
@@ -565,7 +633,7 @@
     <div id="dash" style="display:none">
 
       <nav class="menu" aria-label="管理菜单">
-        <div class="menuTitle">盛愈边缘网关</div>
+        <div class="menuTitle"><span class="brand-logo">SG</span><span><strong>盛愈边缘网关</strong><small>边缘控制台</small></span></div>
         <button data-menu-target="overviewCard" data-section="overview" class="active">总览</button>
         <button data-menu-target="businessCard" data-section="rules">转发规则</button>
         <button data-menu-target="trafficCard" data-section="traffic">流量监控</button>
@@ -586,10 +654,10 @@
             <div class="nodeState"><span class="nodeStateDot"></span><div><b id="overviewHealth">运行正常</b><small id="overviewLastSeen">数据面在线</small></div></div>
           </div>
           <div class="routerMetricGrid">
-            <div class="routerMetric"><span>在线连接</span><b id="overviewConnections">-</b><small>当前会话</small></div>
-            <div class="routerMetric"><span>实时吞吐</span><b id="overviewThroughput">-</b><small>上下行合计</small></div>
-            <div class="routerMetric"><span>业务规则</span><b id="overviewRules">-</b><small>已配置路由</small></div>
-            <div class="routerMetric"><span>源站可用</span><b id="overviewOriginStatus">-</b><small>健康检查结果</small></div>
+            <div class="routerMetric"><div><span>在线连接</span><b id="overviewConnections">-</b><small>当前会话</small></div><span class="metricIcon">↔</span></div>
+            <div class="routerMetric"><div><span>实时吞吐</span><b id="overviewThroughput">-</b><small>上下行合计</small></div><span class="metricIcon">⌁</span></div>
+            <div class="routerMetric"><div><span>业务规则</span><b id="overviewRules">-</b><small>已配置路由</small></div><span class="metricIcon">⌘</span></div>
+            <div class="routerMetric"><div><span>源站可用</span><b id="overviewOriginStatus">-</b><small>健康检查结果</small></div><span class="metricIcon">✓</span></div>
           </div>
           <div class="monitorPanel">
             <div class="monitorPanelHead"><div><strong>实时带宽</strong><span id="overviewTrafficAt">等待数据</span></div><button id="btnOverviewTraffic" class="ghost">查看详细流量</button></div>
@@ -910,6 +978,8 @@ async function boot() {
 function renderOverview() {
   const node = meta && meta.node;
   $("welcomeUser").textContent = currentUser ? currentUser.username : "管理员";
+  if ($("headerRole")) $("headerRole").textContent = currentUser && currentUser.role ? (currentUser.role === "admin" ? "管理员" : currentUser.role === "readonly" ? "只读" : "操作员") : "管理台";
+  if ($("headerDomain")) $("headerDomain").textContent = location.host || "本机节点";
   $("overviewBizCount").textContent = String((meta && meta.business_count) || 0);
   $("overviewStatus").textContent = meta && meta.initialized ? "运行中" : "待配置";
   $("overviewVersion").textContent = node && node.applied_version ? "v" + node.applied_version : "未发布";
