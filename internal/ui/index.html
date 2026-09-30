@@ -36,6 +36,7 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
 .rateDown{color:#087f6e;font-weight:650}.rateUp{color:#ad6a15;font-weight:650}.clientIP{font-family:ui-monospace,Consolas,monospace;font-weight:650}.emptyClients{padding:28px 14px;text-align:center;color:var(--muted);background:#fff;border:1px solid var(--b);border-top:0;border-radius:0 0 var(--r) var(--r);font-size:12px}
 @media(max-width:900px){.clientUsageGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.clientUsageGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.clientUsageCard{min-height:84px;padding:11px}.clientUsageCard b{font-size:19px}}
+.statusBad{color:var(--bad);font-size:11px;font-weight:700}.noticeWarn{min-height:60px;padding:14px 0 0;color:var(--bad);font-size:11px;line-height:1.7}.logReason{margin-top:4px;color:var(--sub);font-size:11px}.logReason summary,.applyDetail summary,.auditDetails summary{cursor:pointer;color:var(--a)}.logReason span,.logReason small{display:block;max-width:280px;margin-top:4px;white-space:normal;overflow-wrap:anywhere}.logReason small{color:var(--muted)}.applyDetail{margin:8px 0;padding:10px 12px;background:#fff8e8;border:1px solid #f0dcad;border-radius:var(--r);font-size:12px}.applyDetail pre{max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#59451d;font:11px/1.5 ui-monospace,Consolas,monospace}.auditDetails{margin-top:14px;padding:10px 0;border-top:1px solid var(--b);font-size:12px}
 </style>
 </head>
 <body>
@@ -206,8 +207,8 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
         <button data-menu-target="businessCard" data-section="rules" data-icon="≡">转发规则</button>
         <button data-menu-target="trafficCard" data-section="traffic" data-icon="⌁">流量监控</button>
         <button data-menu-target="logsCard" data-section="logs" data-icon="▤">实时用户与日志</button>
-        <button data-menu-target="publishCard" data-section="publish" data-icon="↻">发布记录</button>
-        <button data-menu-target="settingsDetails" data-section="settings" data-icon="⚙">节点与入口</button>
+        <button data-menu-target="publishCard" data-section="publish" data-icon="↻" style="display:none">发布记录</button>
+        <button data-menu-target="settingsDetails" data-section="settings" data-icon="⚙" style="display:none">节点与入口</button>
         <button data-menu-target="accountPanel" data-section="account" data-icon="●">账号与安全</button>
       </nav>
 
@@ -232,13 +233,13 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
             <canvas id="overviewLiveChart" class="chart overviewChart" width="1000" height="270"></canvas>
           </div>
           <div class="routerBottomGrid">
-            <div class="statusList"><div class="statusListHead"><strong>运行检查</strong><span>最近一次采样</span></div><div class="statusRow"><span>管理服务</span><b class="statusGood">正常</b></div><div class="statusRow"><span>HAProxy 数据面</span><b class="statusGood">正常</b></div><div class="statusRow\"><span>配置版本</span><b id="overviewConfigVersion">-</b></div></div>
+            <div class="statusList"><div class="statusListHead"><strong>运行检查</strong><span>每 5 秒更新</span></div><div class="statusRow"><span>管理服务</span><b id="overviewManagerStatus">检查中</b></div><div class="statusRow"><span>HAProxy 代理</span><b id="overviewProxyStatus">检查中</b></div><div class="statusRow"><span>配置版本</span><b id="overviewConfigVersion">-</b></div></div>
             <div class="statusList"><div class="statusListHead"><strong>需要关注</strong><span>根据当前数据自动提示</span></div><div id="overviewNotice" class="noticeEmpty">暂无异常提示</div></div>
           </div>
         </section>
       </div>
 
-      <details class="advanced" id="settingsDetails" data-section="settings">
+      <details class="advanced" id="settingsDetails" data-section="settings" style="display:none">
         <summary>系统设置与入口端口</summary>
       <div class="card">
         <h2>管理端口与健康检查</h2>
@@ -334,30 +335,23 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
       </div>
 
       <div class="card" id="businessCard" data-section="rules">
-        <h2>业务（域名 / 源站 / 健康检查）</h2>
-        <div class="desc">“本站入口”是客户端连接的端口；“源站端口”是平台连接源站的端口。同一域名要转发到多个源站端口，必须分别建立本站入口。</div>
+        <h2>转发规则</h2>
+        <div class="desc">填写客户提供的域名和源站信息，再填写客户访问本站使用的端口。保存后系统会自动检查并启用转发。</div>
         <div class="grid">
-          <div><label>业务名称</label><input id="dBizName" placeholder="例如：客户B-接口"></div>
-          <div><label>域名</label><input id="dDomains" placeholder="b.example.com"><div class="hint">例如同一域名可分别配置到 443 和 8444 两个入口。</div></div>
-          <div><label>源站地址</label><input id="dOriginHost" placeholder="10.0.0.6"></div>
-          <div><label>源站端口</label><input id="dOriginPort" type="number" value="443" min="1" max="65535"><div class="hint">例如源站 443 或 8444；这不会自动创建本站监听端口。</div></div>
-          <div>
-            <label>健康检查方式</label>
-            <select id="dHcKind">
-              <option value="tcp">tcp — TCP 连接探测</option>
-              <option value="tls">tls — TLS 握手探测</option>
-              <option value="http">http — HTTP 探测（明文）</option>
-              <option value="https">https — HTTP 探测（走 TLS）</option>
-            </select>
-          </div>
-          <div><label>使用的本站入口 <span class="req">*</span></label><select id="dSniSelect"></select><div class="row"><button id="btnOpenSettings" type="button" class="ghost">创建/查看本站入口</button></div><div class="hint">同一域名要转发到多个端口，请先创建多个本站入口，再分别选择对应入口。</div></div>
+          <div><label>域名 <span class="req">*</span></label><input id="dDomains" placeholder="service.example.com"></div>
+          <div><label>源站 IP <span class="req">*</span></label><input id="dOriginHost" placeholder="203.0.113.10"></div>
+          <div><label>源站端口 <span class="req">*</span></label><input id="dOriginPort" type="number" value="443" min="1" max="65535"></div>
+          <div><label>本站监听端口 <span class="req">*</span></label><input id="dListenPort" type="number" value="8444" min="1" max="65535"><div class="hint">用户连接到本站的端口。若该端口被其它程序占用，保存时会提示更换。</div></div>
+          <input id="dBizName" type="hidden">
+          <input id="dHcKind" type="hidden" value="tcp">
+          <select id="dSniSelect" style="display:none"></select>
         </div>
-        <div class="row"><button id="btnDBiz">添加业务</button><button id="btnCancelBizEdit" class="ghost" style="display:none">取消编辑</button></div>
+        <div class="row"><button id="btnDBiz">保存并启用转发</button><button id="btnCancelBizEdit" class="ghost" style="display:none">取消修改</button></div>
         <div class="msg" id="dBizMsg"></div>
         <div id="dBizTable"></div>
       </div>
 
-      <div class="card" id="publishCard" data-section="publish">
+      <div class="card" id="publishCard" data-section="publish" style="display:none">
         <div class="panelHeading"><div><h2>发布与回滚</h2><div class="desc">每次配置变更都会生成版本记录。失败时保留证据，并按验证结果决定是否回滚。</div></div><div class="panelBadge">原子发布</div></div>
         <ol class="phase" id="dPhaseList"></ol>
         <div class="row">
@@ -515,35 +509,25 @@ async function boot() {
     if (nc.status === 201 && nc.data) customerId = nc.data.id;
   }
 
-  if (meta.initialized) {
-    $("wizard").style.display = "none";
-    $("dash").style.display = "";
-    $("dash").classList.add("ready");
-    const port = location.port || (location.protocol === "https:" ? "443" : "80");
-    $("mgmtPort").value = meta.listen_addr || (location.hostname + ":" + port);
-    $("healthUrl").value = "http://" + (meta.listen_addr || (location.hostname + ":" + port)) + "/api/health";
-    await refreshDash();
-    await loadUsers();
-    await loadLogs();
-    await loadTraffic(true);
-    await loadClientTraffic(true);
-    if (trafficTimer) clearInterval(trafficTimer);
-    trafficTimer = setInterval(() => loadTraffic(false), 5000);
-    if (clientTrafficTimer) clearInterval(clientTrafficTimer);
-    clientTrafficTimer = setInterval(() => loadClientTraffic(false), 5000);
-    renderOverview();
-    applyRoleView();
-    const firstMenu = document.querySelector("[data-menu-target='overviewCard']");
-    if (firstMenu) showSection("overview", firstMenu);
-  } else {
-    $("dash").style.display = "none";
-    $("dash").classList.remove("ready");
-    $("wizard").style.display = "";
-    await fillWelcome();
-    await loadSNI();
-    await loadBiz();
-    gotoStep(1);
-  }
+  $("wizard").style.display = "none";
+  $("dash").style.display = "";
+  $("dash").classList.add("ready");
+  const port = location.port || (location.protocol === "https:" ? "443" : "80");
+  $("mgmtPort").value = meta.listen_addr || (location.hostname + ":" + port);
+  $("healthUrl").value = "http://" + (meta.listen_addr || (location.hostname + ":" + port)) + "/api/health";
+  await refreshDash();
+  await loadUsers();
+  await loadLogs();
+  renderOverview();
+  await loadTraffic(true);
+  await loadClientTraffic(true);
+  if (trafficTimer) clearInterval(trafficTimer);
+  trafficTimer = setInterval(() => loadTraffic(false), 5000);
+  if (clientTrafficTimer) clearInterval(clientTrafficTimer);
+  clientTrafficTimer = setInterval(() => loadClientTraffic(false), 5000);
+  applyRoleView();
+  const firstMenu = document.querySelector("[data-menu-target='overviewCard']");
+  if (firstMenu) showSection("overview", firstMenu);
   return true;
 }
 
@@ -605,6 +589,24 @@ $("btnCreateUser").onclick = async () => {
 
 function logValue(row, name) { return row[name] == null ? "-" : row[name]; }
 
+function connectionResult(row) {
+  const code = String(row.term_code || "");
+  const reason = String(row.term_reason || "");
+  if (row.parse_ok === false) return ["日志信息不完整", "no", "HAProxy 日志未能完整解析"];
+  if (reason.indexOf("源站连接失败") >= 0) return ["无法连接源站", "no", reason];
+  if (reason.indexOf("未匹配 SNI") >= 0) return ["域名未匹配转发规则", "no", reason];
+  if (reason.indexOf("非 TLS 流量") >= 0 || reason.indexOf("未发送 SNI") >= 0) return ["访问协议或域名不匹配", "no", reason];
+  if (code === "--" || code === "-") return ["连接正常结束", "yes", "HAProxy 未记录连接异常；这不代表源站应用内容已验证"];
+  if (code === "CC") return ["客户端在连上源站前中止", "warn", "客户端在 HAProxy 等待源站连接时提前中止；也可能是客户端超时设置较短"];
+  if (code === "CD" || code === "CH" || code === "CQ" || code === "CR") return ["客户端侧连接中断", "warn", "HAProxy 记录到客户端连接中断；中间网络设备也可能造成此现象"];
+  if (code === "SC") return ["源站拒绝连接", "no", "源站或两者之间的网络设备拒绝了 TCP 连接"];
+  if (code === "sC") return ["连接源站超时", "no", "HAProxy 等待源站建立连接超时"];
+  if (code === "SD" || code === "SH") return ["源站侧连接异常", "no", "源站或中间网络在传输期间中断连接"];
+  if (code === "sD" || code === "sH") return ["等待源站超时", "no", "源站在 HAProxy 超时期限内没有返回数据"];
+  if (code === "PC" || code === "RC") return ["代理资源不足", "no", "HAProxy 无法建立源站连接，可能达到本机 socket 或端口资源限制"];
+  return ["连接异常，原因待确认", "warn", reason || (code ? "HAProxy 状态码 " + code : "没有可用的错误原因")];
+}
+
 async function loadLogs() {
   const params = new URLSearchParams({limit:"50"});
   const sni = ($("logSniFilter") && $("logSniFilter").value || "").trim();
@@ -615,21 +617,23 @@ async function loadLogs() {
   const res = await api("GET", "/api/logs/conn?" + params.toString());
   if (res.status !== 200) { show("logsMsg", errText(res, "读取连接日志失败"), "err"); return; }
   const rows = (res.data && res.data.items) || [];
-  let h = "<div class='tableHeading'><div><strong>连接记录</strong><span>最近 50 条 · 日志在连接结束后写入</span></div><b>" + rows.length + " 条</b></div><table><tr><th>时间</th><th>入口 / SNI</th><th>客户端</th><th>源站</th><th>耗时</th><th>结果</th><th>流量</th></tr>";
+  let h = "<div class='tableHeading'><div><strong>连接记录</strong><span>最近 50 条 · 连接结束后生成完整记录</span></div><b>" + rows.length + " 条</b></div><table><tr><th>时间</th><th>客户端 IP</th><th>SNI 域名</th><th>实际源站</th><th>连接 / 会话耗时</th><th title='上行：客户端到源站；下行：源站到客户端'>流量 ↑上行 / ↓下行</th><th>连接结果</th></tr>";
   for (const row of rows) {
-    const term = logValue(row, "term_code");
-    const healthy = term === "--" || term === "-";
-    const entry = esc(logValue(row, "entry_addr")) + ":" + esc(logValue(row, "entry_port"));
-    const sni = esc(logValue(row, "sni"));
-    const timing = logValue(row, "session_ms") === "-" ? "-" : esc(logValue(row, "session_ms")) + " ms";
-    h += "<tr><td><b>" + esc(logValue(row, "end_ts")) + "</b></td><td><span class='tablePrimary'>" + entry + "</span><span class='tableSecondary'>" + sni + "</span></td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port")) + "</td><td>" + timing + "</td><td><span class='tag " + (healthy ? "yes" : "no") + "'>" + esc(term) + "</span></td><td>↑" + esc(logValue(row, "bytes_up")) + " / ↓" + esc(logValue(row, "bytes_down")) + "</td></tr>";
+    const result = connectionResult(row);
+    const connect = logValue(row, "connect_ms") === "-" ? "未建立" : esc(logValue(row, "connect_ms")) + " ms";
+    const session = logValue(row, "session_ms") === "-" ? "-" : esc(logValue(row, "session_ms")) + " ms";
+    const origin = esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port"));
+    const source = row.origin_reported === true ? "HAProxy 实际连接" : "配置目标";
+    const details = "状态码 " + (row.term_code || "-") + (row.term_reason ? "；" + row.term_reason : "");
+    const up = logValue(row, "bytes_up"), down = logValue(row, "bytes_down");
+    h += "<tr><td><b>" + esc(logValue(row, "end_ts")) + "</b><span class='tableSecondary'>入口 " + esc(logValue(row, "entry_port")) + "</span></td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "sni")) + "</td><td><span class='tablePrimary'>" + origin + "</span><span class='tableSecondary'>" + source + "</span></td><td>连接 " + connect + "<span class='tableSecondary'>会话 " + session + "</span></td><td>↑" + (up === "-" ? "不可用" : bytesText(up)) + " / ↓" + (down === "-" ? "不可用" : bytesText(down)) + "</td><td><span class='tag " + (result[1] === "yes" ? "yes" : result[1] === "no" ? "no" : "") + "'>" + esc(result[0]) + "</span><details class='logReason'><summary>原因</summary><span>" + esc(result[2]) + "</span><small>" + esc(details) + "</small></details></td></tr>";
   }
   $("connLogTable").innerHTML = h + "</table>" + (rows.length ? "" : "<div class='hint'>暂无连接记录，连接结束并上报后会出现在这里。</div>");
   const audit = await api("GET", "/api/audit?limit=30");
   const ar = (audit.data && audit.data.items) || [];
-  let ah = "<h3 style='font-size:14px;margin:16px 0 4px'>操作审计</h3><table><tr><th>时间</th><th>账号</th><th>操作</th><th>结果</th><th>摘要</th></tr>";
+  let ah = "<details class='auditDetails'><summary>系统操作记录</summary><table><tr><th>时间</th><th>账号</th><th>操作</th><th>结果</th><th>摘要</th></tr>";
   for (const row of ar) ah += "<tr><td>" + esc(logValue(row, "TS") || logValue(row, "ts")) + "</td><td>" + esc(logValue(row, "Actor") || logValue(row, "actor")) + "</td><td>" + esc(logValue(row, "Action") || logValue(row, "action")) + "</td><td>" + esc(logValue(row, "Result") || logValue(row, "result")) + "</td><td>" + esc(logValue(row, "Summary") || logValue(row, "summary")) + "</td></tr>";
-  $("auditLogTable").innerHTML = ah + "</table>";
+  $("auditLogTable").innerHTML = ah + "</table></details>";
 }
 
 function bytesText(n) {
@@ -724,7 +728,20 @@ function drawTrafficBars(canvas, rows) {
 
 async function loadTraffic(forceHistory) {
   if (!nodeId) return;
-  const stats = await api("GET", "/api/nodes/" + nodeId + "/stats");
+  const [stats, manager] = await Promise.all([
+    api("GET", "/api/nodes/" + nodeId + "/stats"),
+    api("GET", "/api/health")
+  ]);
+  const managerOK = manager.status === 200 && manager.data && manager.data.ok === true;
+  if ($("overviewManagerStatus")) {
+    $("overviewManagerStatus").textContent = managerOK ? "正常" : "无响应";
+    $("overviewManagerStatus").className = managerOK ? "statusGood" : "statusBad";
+  }
+  const proxyOK = stats.status === 200 && stats.data && !stats.data.stats_error && stats.data.stats;
+  if ($("overviewProxyStatus")) {
+    $("overviewProxyStatus").textContent = proxyOK ? "运行正常" : "状态异常";
+    $("overviewProxyStatus").className = proxyOK ? "statusGood" : "statusBad";
+  }
   const st = (stats.data && stats.data.stats) || {};
   const now = Date.now();
   let rate = "-";
@@ -744,7 +761,21 @@ async function loadTraffic(forceHistory) {
   if ($("overviewRules")) $("overviewRules").textContent = String((meta && meta.business_count) || 0);
   if ($("overviewOriginStatus")) {
     const originUp = Number(st.backend_up || 0), originDown = Number(st.backend_down || 0);
-    $("overviewOriginStatus").textContent = originUp + " / " + (originUp + originDown);
+    $("overviewOriginStatus").textContent = originDown ? originUp + " 可用 / " + originDown + " 异常" : originUp + " 个可用";
+  }
+  const backendDown = Number(st.backend_down || 0);
+  if ($("overviewHealth")) {
+    const label = !managerOK ? "管理服务异常" : !proxyOK ? "HAProxy 代理异常" : backendDown ? "源站探测异常" : "运行正常";
+    $("overviewHealth").textContent = label;
+    $("overviewHealth").className = !managerOK || !proxyOK || backendDown ? "statusBad" : "statusGood";
+  }
+  if ($("overviewNotice")) {
+    const notice = !managerOK ? "管理服务健康接口无响应，请检查系统服务与服务器资源。" :
+      !proxyOK ? "无法读取 HAProxy 运行指标，请检查代理服务及其本地统计接口。" :
+      backendDown ? "有 " + backendDown + " 个源站健康检查失败。打开连接日志查看源站地址和失败原因。" :
+      "管理服务、HAProxy 代理和源站探测均正常。";
+    $("overviewNotice").textContent = notice;
+    $("overviewNotice").className = backendDown || !managerOK || !proxyOK ? "noticeWarn" : "noticeEmpty";
   }
   if ($("overviewTrafficAt")) $("overviewTrafficAt").textContent = new Date().toLocaleTimeString() + " · 上行 " + bytesText(upRate) + "/s · 下行 " + bytesText(downRate) + "/s";
   $("trafficAt").textContent = "实时刷新 · " + new Date().toLocaleTimeString() + " · 速率 " + rate;
@@ -931,34 +962,102 @@ $("btnBiz").onclick = async () => {
 };
 
 $("btnDBiz").onclick = async () => {
-  const c = collectBiz("dBizName", "dDomains", "dOriginHost", "dOriginPort", "dHcKind", "dSniSelect");
-  if (c.err) { show("dBizMsg", c.err, "err"); return; }
-  const editing = editingBizId;
-  const selectedEntry = $("dSniSelect").value;
-  const selectedDomains = c.body.domains;
-  const conflict = bizList.find(function (b) {
-    if (editing && b.id === editing) return false;
-    if (b.sni_entry_id !== selectedEntry) return false;
-    return (b.domains || []).some(d => selectedDomains.indexOf(String(d).toLowerCase()) >= 0);
-  });
-  if (conflict) {
-    const e = sniList.find(x => x.id === selectedEntry);
-    show("dBizMsg", "本站入口 " + (e ? e.bind_addr + ":" + e.bind_port : selectedEntry) + " 已有域名 " + selectedDomains.join(", ") + " 的业务《" + (conflict.name || conflict.id) + "》。\n请先创建另一个“本站监听端口”（例如 443 或 8444），再在“使用的本站入口”中切换；源站端口不会自动变成本站入口。", "err");
-    return;
+  const port = parseInt($("dListenPort").value, 10);
+  if (portBad(port)) { show("dBizMsg", "本站监听端口必须是 1–65535。", "err"); return; }
+  const domain = $("dDomains").value.trim().toLowerCase();
+  const domains = domain.split(/[,，\s]+/).filter(Boolean);
+  if (!domains.length || domains.some(value => value.indexOf("*") >= 0)) { show("dBizMsg", "请填写完整域名，例如 service.example.com。", "err"); return; }
+  if (!$("dOriginHost").value.trim()) { show("dBizMsg", "请填写源站 IP 地址。", "err"); return; }
+  if (portBad(parseInt($("dOriginPort").value, 10))) { show("dBizMsg", "源站端口必须是 1–65535。", "err"); return; }
+  $("dBizName").value = domain;
+  $("dHcKind").value = "tcp";
+  $("btnDBiz").disabled = true;
+  try {
+    const entry = await ensureSNIEntry(port);
+    if (!entry) return;
+    $("dSniSelect").value = entry.id;
+    const c = collectBiz("dBizName", "dDomains", "dOriginHost", "dOriginPort", "dHcKind", "dSniSelect");
+    if (c.err) { show("dBizMsg", c.err, "err"); return; }
+    const editing = editingBizId;
+    const selectedDomains = c.body.domains;
+    const conflict = bizList.find(function (b) {
+      if (editing && b.id === editing) return false;
+      if (b.sni_entry_id !== entry.id) return false;
+      return (b.domains || []).some(d => selectedDomains.indexOf(String(d).toLowerCase()) >= 0);
+    });
+    if (conflict) {
+      show("dBizMsg", "这个域名已经绑定到本站端口 " + port + "。相同域名可以配置多个源站端口，但每个转发规则要使用不同的本站监听端口。", "err");
+      return;
+    }
+    show("dBizMsg", "正在保存并启用转发…", "warn");
+    const res = await api(editing ? "PUT" : "POST", editing ? "/api/businesses/" + editing : "/api/businesses", c.body);
+    if (res.status !== (editing ? 200 : 201)) { show("dBizMsg", errText(res, "保存规则失败"), "err"); return; }
+    const saved = (res.data && res.data.business) || {};
+    editingBizId = saved.id || editing;
+    const enabled = await applyForwardingChange("dBizMsg", "业务配置已保存");
+    if (enabled) {
+      editingBizId = "";
+      $("btnDBiz").textContent = "保存并启用转发";
+      $("btnCancelBizEdit").style.display = "none";
+      $("dDomains").value = ""; $("dOriginHost").value = ""; $("dOriginPort").value = "443"; $("dListenPort").value = "8444";
+    } else {
+      $("btnDBiz").textContent = "重试保存并启用";
+      $("btnCancelBizEdit").style.display = "";
+    }
+  } catch (err) {
+    show("dBizMsg", "请求没有完成，规则可能尚未启用。请刷新后查看当前规则。" + (err && err.message ? " " + err.message : ""), "err");
+  } finally {
+    $("btnDBiz").disabled = false;
   }
-  const res = await api(editing ? "PUT" : "POST", editing ? "/api/businesses/" + editing : "/api/businesses", c.body);
-  if (res.status !== (editing ? 200 : 201)) { show("dBizMsg", errText(res, editing ? "保存业务失败" : "添加业务失败"), "err"); return; }
-  show("dBizMsg", (editing ? "已保存业务《" : "已添加业务《") + c.body.name + "》（还需发布生效）", "ok");
-  editingBizId = "";
-  $("btnDBiz").textContent = "添加业务";
-  $("btnCancelBizEdit").style.display = "none";
-  await loadBiz();
+};
+
+async function ensureSNIEntry(port) {
+  if (!nodeId) { show("dBizMsg", "没有找到转发节点，请检查节点服务状态。", "err"); return null; }
+  const existing = sniList.find(e => Number(e.bind_port) === port && e.enabled && (e.bind_addr === "0.0.0.0" || e.bind_addr === "*"));
+  if (existing) return existing;
+  show("dBizMsg", "正在为本站端口 " + port + " 创建监听…", "warn");
+  const res = await api("POST", "/api/nodes/" + nodeId + "/sni-entries", { bind_addr: "0.0.0.0", bind_port: port, enabled: true });
+  if (res.status === 409) { show("dBizMsg", "本站端口 " + port + " 已被其他程序占用，请换一个未使用的端口。", "err"); return null; }
+  if (res.status !== 201) { show("dBizMsg", errText(res, "创建本站监听失败"), "err"); return null; }
+  await loadSNI();
+  return sniList.find(e => e.id === res.data.id) || res.data;
+}
+
+async function applyForwardingChange(msgId, savedText) {
+  const res = await api("POST", "/api/nodes/" + nodeId + "/publish", { note: "保存并启用转发" });
+  const d = res.data || {};
+  if (res.status !== 200 || d.status === "failed") {
+    let plain = "规则已保存，但尚未启用。当前正在运行的转发保持不变。";
+    let technical = errText(res, d.message || "HAProxy 未能加载新配置");
+    if (d.phase === "portcheck" || (res.data && res.data.code === "port_in_use")) plain = "本站监听端口正在被其他程序使用，规则已保存但未启用。请修改本站端口后重试。";
+    else if (d.phase === "validate") plain = "HAProxy 检查新配置时发现问题，规则未启用。修正规则后再次保存即可。";
+    else if (d.phase === "reload" || d.phase === "verify") plain = "HAProxy 未能确认新配置已正常运行，原有转发继续保持。请稍后重试。";
+    const detail = esc(technical + "\n" + JSON.stringify(d, null, 2));
+    show(msgId, plain, "err");
+    document.querySelectorAll(".applyDetail").forEach(el => el.remove());
+    $("dBizMsg").insertAdjacentHTML("afterend", "<details class='applyDetail'><summary>技术详情</summary><p>修改并释放占用端口后，可以在这里重试。</p><button type='button' data-retry-apply>重试应用更改</button><pre>" + detail + "</pre></details>");
+    const retry = document.querySelector("[data-retry-apply]");
+    if (retry) retry.onclick = () => applyForwardingChange("dBizMsg", savedText);
+    await loadSNI(); await loadBiz();
+    return false;
+  }
+  const down = Number(d.origin_down || 0);
+  let message = savedText + "，变更已应用。";
+  if (down) message += " 转发规则已生效，但源站探测暂不可用，请检查 IP、端口及源站防火墙。";
+  else message += " HAProxy 源站探测正常。";
+  show(msgId, message, down ? "warn" : "ok");
+  document.querySelectorAll(".applyDetail").forEach(el => el.remove());
+  const m = await api("GET", "/api/meta");
+  if (m.status === 200 && m.data) meta = m.data;
+  await loadSNI(); await loadBiz(); await loadReleases(); renderOverview();
+  return true;
 };
 
 $("btnCancelBizEdit").onclick = () => {
   editingBizId = "";
-  $("btnDBiz").textContent = "添加业务";
+  $("btnDBiz").textContent = "保存并启用转发";
   $("btnCancelBizEdit").style.display = "none";
+  $("dDomains").value = ""; $("dOriginHost").value = ""; $("dOriginPort").value = "443"; $("dListenPort").value = "8444";
   show("dBizMsg", "已取消编辑", "ok");
 };
 
@@ -1045,14 +1144,13 @@ async function loadBiz() {
     });
   }));
   bizList = details;
-  let h = "<table><tr><th>业务</th><th>入口</th><th>域名</th><th>源站地址</th><th>源站端口</th><th>健康检查方式</th><th>操作</th></tr>";
+  let h = "<table><tr><th>域名</th><th>本站端口</th><th>源站 IP</th><th>源站端口</th><th>状态</th><th>操作</th></tr>";
   for (const b of bizList) {
     const entry = sniList.find(e => e.id === b.sni_entry_id);
-    const entryText = entry ? entry.bind_addr + ":" + entry.bind_port : (b.sni_entry_id || "-");
-    h += "<tr><td>" + esc(b.name || b.id) + "</td><td>" + esc(entryText) + "</td><td>" +
-         esc((b.domains || []).join(", ")) + "</td><td>" + esc(b.origin_host || "-") + "</td><td>" +
-         esc(b.origin_port || "-") + "</td><td>" + esc((b.healthcheck && b.healthcheck.kind) || "-") +
-         "</td><td><button data-biz-edit=\"" + esc(b.id) + "\">编辑</button> " +
+    const entryText = entry ? entry.bind_port : "-";
+    h += "<tr><td>" + esc((b.domains || []).join(", ")) + "</td><td>" + esc(entryText) + "</td><td>" +
+         esc(b.origin_host || "-") + "</td><td>" + esc(b.origin_port || "-") + "</td><td>已配置</td>" +
+         "<td><button data-biz-edit=\"" + esc(b.id) + "\">修改</button> " +
          "<button data-biz-delete=\"" + esc(b.id) + "\">删除</button></td></tr>";
   }
   h += "</table>";
@@ -1083,22 +1181,25 @@ async function editBiz(id) {
   $("dDomains").value = (b.domains || []).join(", ");
   $("dOriginHost").value = route.origin_host || listed.origin_host || "";
   $("dOriginPort").value = route.origin_port || listed.origin_port || "";
+  const entry = sniList.find(x => x.id === route.sni_entry_id);
+  $("dListenPort").value = entry ? entry.bind_port : "8444";
   $("dHcKind").value = (b.healthcheck && b.healthcheck.kind) || "tcp";
   if (route && route.sni_entry_id) $("dSniSelect").value = route.sni_entry_id;
-  $("btnDBiz").textContent = "保存业务修改";
+  $("btnDBiz").textContent = "保存修改并启用";
   $("btnCancelBizEdit").style.display = "";
-  $("dBizName").scrollIntoView({ behavior: "smooth", block: "center" });
-  show("dBizMsg", "正在编辑《" + (b.name || id) + "》，修改后需要重新发布", "ok");
+  $("dDomains").scrollIntoView({ behavior: "smooth", block: "center" });
+  show("dBizMsg", "修改域名、源站或本站端口后保存，系统会自动应用变更。", "ok");
 }
 
 async function deleteBiz(id) {
   const b = bizList.find(x => x.id === id);
-  if (!b || !confirm("确认删除业务《" + (b.name || id) + "》？删除后需要重新发布才会生效。")) return;
+  if (!b || !confirm("确认删除转发规则“" + ((b.domains || []).join(", ") || b.name || id) + "”？系统会自动停用这条规则。")) return;
   const res = await api("DELETE", "/api/businesses/" + id);
   if (res.status !== 200) { show("dBizMsg", errText(res, "删除业务失败"), "err"); return; }
-  show("dBizMsg", (res.data && res.data.next_step) || "业务已删除（还需发布）", "ok");
+  show("dBizMsg", "正在停用转发…", "warn");
   if (editingBizId === id) $("btnCancelBizEdit").click();
-  await loadBiz();
+  const ok = await applyForwardingChange("dBizMsg", "转发规则已删除");
+  if (!ok) show("dBizMsg", "删除记录已保存，但 HAProxy 尚未应用变更，旧转发规则仍在运行。请检查技术详情后重试发布。", "err");
 }
 
 async function refreshDash() { await loadSNI(); await loadBiz(); renderPhases("dPhaseList", null, null); await loadReleases(); }
