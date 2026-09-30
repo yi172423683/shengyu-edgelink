@@ -159,10 +159,12 @@ table{width:100%;margin-top:14px;border:1px solid var(--b);border-radius:var(--r
           </div>
           <div>
             <label>TLS 模式</label>
-            <select id="tlsMode">
+            <select id="tlsMode" style="display:none" aria-hidden="true">
               <option value="sni_tls" selected>加密流量转发</option>
+              <option value="tls_terminate" disabled>TLS 终止（平台代申请证书）— 尚未实现</option>
             </select>
             <div class="hint" id="tlsModeHint"></div>
+            <div hidden aria-hidden="true" id="tlsCapabilityMetadata">TLS 透传：证书由源站自己持有和续期；平台不会申请证书。</div>
           </div>
         </div>
         <div class="row"><button id="btnBiz">添加业务</button></div>
