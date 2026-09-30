@@ -55,7 +55,7 @@ var allowedDirectives = map[string]map[string]bool{
 		"bind": true, "mode": true, "log": true, "log-format": true,
 		"tcp-request": true, "use_backend": true, "default_backend": true,
 		"timeout": true, "maxconn": true, "option": true,
-		"description": true, "default-server": true,
+		"description": true, "default-server": true, "stick-table": true,
 		"#": true, // 注释
 	},
 	"backend": {
@@ -75,7 +75,7 @@ var allowedDirectives = map[string]map[string]bool{
 // forbiddenSubstrings 是商业版/不稳定特性的硬禁用词。即使误加也会被拦住。
 var forbiddenSubstrings = []string{
 	"hapee", "fusion", "dataplane", "data-plane", "deviceatlas",
-	"quic", "http3", "http/3", "ech_args", "easy-ssl", "stick-table",
+	"quic", "http3", "http/3", "ech_args", "easy-ssl",
 	"peers", "lua-load", "spoe", "ring", "modsecurity", "waf-mod",
 }
 
@@ -113,6 +113,12 @@ func CheckDirectives(cfg []byte) []string {
 		if !permitted {
 			bad = append(bad, fmt.Sprintf("%d: 指令 %q 在 %q 内被显式禁用", lineNo, head, section))
 		}
+		if head == "stick-table" {
+			const clientTrafficTable = "stick-table type ip size 100k expire 30m store conn_cur,bytes_in_rate(1000),bytes_out_rate(1000)"
+			if section != "frontend" || trimmed != clientTrafficTable {
+				bad = append(bad, fmt.Sprintf("%d: stick-table 仅允许使用客户端流量统计模板", lineNo))
+			}
+		}
 		// server 行要逐参数校验：只看首个词会漏掉 `check timeout 3000ms` 这类
 		// 「行首合法、参数非法」的写法（见 checkServerLine 的说明）。
 		if head == "server" {
@@ -132,8 +138,8 @@ func CheckDirectives(cfg []byte) []string {
 //
 // 为什么要这么做：域名、SNI、路径都可能**合法地**包含像 "ring" 这样的子串
 // （例如 ring.example.com），对整行做子串匹配会产生误报，进而让正常业务发不出去。
-// 禁用特性（log ring@x、option lua-load、stick-table…）一定出现在引号/花括号之前，
-// 所以只扫这一段既够用又不会误伤。
+// 禁用特性（log ring@x、option lua-load、peers…）一定出现在引号/花括号之前，
+// 所以只扫这一段既够用又不会误伤。stick-table 使用单独的严格模板校验。
 func scanRegion(line string) string {
 	cut := len(line)
 	for _, c := range []string{"{", "\""} {

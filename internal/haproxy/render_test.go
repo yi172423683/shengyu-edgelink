@@ -296,6 +296,23 @@ backend b1
 	}
 }
 
+func TestClientTrafficStickTableIsAllowedOnlyAsTemplate(t *testing.T) {
+	allowed := CheckDirectives([]byte(`
+frontend fe_sni_443
+    stick-table type ip size 100k expire 30m store conn_cur,bytes_in_rate(1000),bytes_out_rate(1000)
+`))
+	if len(allowed) != 0 {
+		t.Fatalf("客户端流量统计模板应允许: %v", allowed)
+	}
+	denied := CheckDirectives([]byte(`
+frontend fe_sni_443
+    stick-table type ip size 1m expire 1h store conn_cur
+`))
+	if len(denied) == 0 {
+		t.Fatal("非模板 stick-table 参数应被拒绝")
+	}
+}
+
 // 合法配置不能被白名单误杀（尤其是域名里含 ring 这种子串的情况）。
 func TestDirectiveWhitelistNoFalsePositive(t *testing.T) {
 	st := sniState()

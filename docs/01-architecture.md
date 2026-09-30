@@ -251,7 +251,7 @@ backend bk_tcp_<bizid>
 
 | # | 决策 | 备选 | 理由 |
 |---|---|---|---|
-| A1 | 转发内核统一 HAProxy **社区版 2.8 LTS** | Nginx stream / HAProxy 企业版 | 需求指定；社区版足够（SNI 透传、stats socket、平滑 reload 全是社区特性）；明确不用企业版特性（`stick-table` 的 `peers` 同步、runtime API 的写操作、`lua` 的商业模块等） |
+| A1 | 转发内核统一 HAProxy **社区版 2.8 LTS** | Nginx stream / HAProxy 企业版 | 需求指定；社区版足够（SNI 透传、stats socket、平滑 reload 全是社区特性）；仅使用有界的 frontend stick-table 采集临时客户端速率；禁用 `peers` 同步、runtime API 写操作、`lua` 商业模块等 |
 | A2 | Go 写管理面与 Agent | Python / Java | 单二进制交付、交叉编译方便、并发模型适合流式日志与长连接 |
 | A3 | **自研 root helper（socket 激活）** 作为唯一特权入口 | agent 直接以 root 跑 / sudoers 通配 | 需求 §九 要求 Web 服务非 root；sudoers 通配等于给 root shell；白名单 helper 可审计、可测试 |
 | A4 | 配置 + 审计用 **SQLite**，连接日志/指标用**独立小时分片 SQLite** | 全塞一个 SQLite / 直接上 ClickHouse | 需求 §二.4 明确禁止把海量连接日志写业务 SQLite；分片方案 v1 零外部依赖，且天然满足「查询不扫全历史」与「按分区清理」 |

@@ -153,8 +153,9 @@ HAProxy 社区版没有原生稳定的连接 ID。方案（按优先级降级，
 2. 否则由**平台在渲染期/解析期合成**（当前做法）：`<node>-<fe>-<accept_ms>-<ci>-<cp>-<fi>-<fp>`。
    这里的时间戳取日志别名 **`%T`**（accept date，GMT，含毫秒）—— 不能用 `%[accept_date]`：
    `accept_date` 不是 sample fetch，那样写会让 `haproxy -c` 直接报错（见 §2.2）。
-   社区版 `gpc0` 属于 stick-table 机制，需要额外声明 `table`，我们**不使用**（也是为了避免
-   stick-table 带来的内存/eviction 复杂度）：
+   社区版 `gpc0` 属于 stick-table 机制，需要额外声明 `table`，我们不使用它来合成连接 ID。
+   frontend 的有界 stick-table 只用于短期客户端速率展示（100k 项、30 分钟过期），不做 peers 同步，
+   也不承担历史统计；历史用量由持久化连接日志汇总：
    `cid = <node>-<fe>-<T 的毫秒部分>-<ci>-<cp>-<fi>-<fp>`
    五元组 + 时间戳在同一毫秒内理论上可能撞（同 IP 同端口同毫秒重连），概率极低；`cid` 的用途是
    "把同一条日志的多个上下文串起来"，**不承担唯一键职责**，所以可接受。
