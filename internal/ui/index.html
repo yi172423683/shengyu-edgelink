@@ -201,12 +201,169 @@
     .loginForm { min-height:390px; padding:34px 28px; }
   }
 </style>
+<style>
+  /* Product shell v2: an operational console rather than a long form. */
+  :root {
+    --bg:#f3f6f9; --surface:#ffffff; --surface-soft:#f8fafc; --ink:#142033;
+    --muted:#708096; --subtle:#9aa8b8; --line:#e4eaf0; --nav:#112338;
+    --nav-soft:#1a3957; --brand:#2b7de9; --brand-dark:#1959a7; --good:#16845b;
+    --good-soft:#eaf8f1; --warn:#a76713; --warn-soft:#fff7e8; --bad:#bc3c4d;
+  }
+  * { box-sizing:border-box; }
+  body { color:var(--ink); background:var(--bg); font-family:"Segoe UI Variable","Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:0; }
+  header { height:68px; min-height:68px; padding:0 28px; background:rgba(255,255,255,.96); border-bottom:1px solid var(--line); box-shadow:0 1px 0 rgba(17,35,56,.03); }
+  header > div:first-child { display:flex; align-items:center; gap:11px; }
+  header > div:first-child::before { content:"SG"; width:30px; height:30px; display:grid; place-items:center; flex:none; color:#fff; background:var(--brand); border-radius:8px; font-size:10px; font-weight:800; letter-spacing:.04em; }
+  header h1 { color:var(--ink); font-size:15px; font-weight:700; letter-spacing:.01em; }
+  header .sub { color:var(--muted); font-size:11px; }
+  .headerActions { gap:16px; }
+  #hdrRight { max-width:460px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .headerActions button { min-height:32px; padding:6px 12px; color:#40526a; background:#fff; border-color:#d8e0e8; border-radius:6px; }
+  .headerActions button:hover { color:var(--brand-dark); background:#f5f8fc; }
+  main { background:var(--bg); }
+  #sslBanner { margin:14px 22px 0; padding:10px 14px; color:#506174; background:#f8fbfe; border-color:#dce7f2; border-radius:7px; font-size:12px; }
+  #sslBanner strong { color:var(--ink); }
+  #wizard { padding:28px 34px 44px; }
+  #wizard > .card { max-width:1100px; margin:0 auto 18px; }
+  .steps { max-width:1100px; margin:0 auto 18px; padding:0 3px 11px; gap:0; border-bottom:1px solid var(--line); }
+  .steps span { position:relative; padding:4px 18px 8px 0; margin-right:18px; color:var(--subtle); background:transparent; border-radius:0; font-size:12px; }
+  .steps span::after { content:""; position:absolute; left:0; right:18px; bottom:-1px; height:2px; background:transparent; }
+  .steps span.cur { color:var(--brand-dark); background:transparent; font-weight:700; }
+  .steps span.cur::after { background:var(--brand); }
+  .steps span.done { color:var(--good); background:transparent; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 4px 16px rgba(27,51,78,.045); }
+  .card h2 { color:var(--ink); font-size:18px; font-weight:700; letter-spacing:-.01em; }
+  .card .desc { color:var(--muted); line-height:1.75; }
+  .panelHeading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+  .panelHeading .desc { margin-bottom:0; }
+  .panelBadge { flex:none; padding:6px 10px; color:#60748b; background:#f3f7fa; border:1px solid var(--line); border-radius:999px; font-size:11px; white-space:nowrap; }
+  .logToolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:22px; padding:12px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; }
+  .logToolbar input { flex:1 1 180px; min-width:150px; min-height:36px; }
+  .logToolbar button { min-height:36px; padding:7px 12px; }
+  .checkLabel { display:flex; align-items:center; gap:6px; margin:0 3px; color:#5c6d82; font-size:12px; font-weight:500; white-space:nowrap; }
+  .checkLabel input { width:15px; min-height:15px; accent-color:var(--brand); }
+  label { color:#415268; font-size:12px; font-weight:650; }
+  input,select { min-height:40px; color:var(--ink); background:#fff; border:1px solid #d4dee8; border-radius:6px; }
+  input:hover,select:hover { border-color:#b8c8d9; }
+  input:focus,select:focus { border-color:var(--brand); box-shadow:0 0 0 3px rgba(43,125,233,.12); }
+  input[readonly] { color:#697a8e; background:#f6f8fa; }
+  .hint { color:var(--subtle); line-height:1.55; }
+  button { min-height:38px; padding:8px 15px; color:#fff; background:var(--brand); border-radius:6px; font-weight:650; }
+  button:hover { background:var(--brand-dark); }
+  button.sec { color:#405268; background:#eef3f7; border-color:#dce5ed; }
+  button.sec:hover { color:var(--ink); background:#e3ebf3; }
+  button.ghost { color:#405268; background:#fff; border-color:#d4dee8; }
+  button.ghost:hover { color:var(--brand-dark); background:#f5f8fc; }
+  .msg { border-radius:7px; line-height:1.6; }
+  .msg.ok { color:var(--good); background:var(--good-soft); border-color:#c6ead9; }
+  .msg.err { color:var(--bad); background:#fff1f2; border-color:#f2c7cd; }
+  .msg.warn { color:var(--warn); background:var(--warn-soft); border-color:#f0d7aa; }
+  table { margin-top:16px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .tableHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; color:#617187; font-size:11px; }
+  .tableHeading strong { display:block; color:var(--ink); font-size:13px; }
+  .tableHeading span { display:block; margin-top:3px; color:var(--subtle); font-weight:400; }
+  .tableHeading b { color:var(--brand-dark); font-size:13px; }
+  .tablePrimary, .tableSecondary { display:block; }
+  .tablePrimary { color:var(--ink); font-weight:650; }
+  .tableSecondary { margin-top:3px; color:var(--muted); font-size:11px; }
+  .releaseHistory { margin-top:28px; padding-top:22px; border-top:1px solid var(--line); }
+  .releaseHistoryTitle { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; color:var(--ink); font-size:13px; font-weight:700; }
+  .releaseItem { display:grid; grid-template-columns:90px 110px minmax(0,1fr) 110px; gap:14px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); color:#596b80; font-size:12px; }
+  .releaseItem:last-child { border-bottom:0; }
+  .releaseItem strong { color:var(--ink); }
+  .releaseItem small { display:block; margin-top:3px; color:var(--subtle); }
+  .releaseResult { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  @media (max-width:760px) { .releaseItem { grid-template-columns:1fr 1fr; gap:7px; } .releaseResult { grid-column:1 / -1; white-space:normal; } }
+  th,td { padding:12px 13px; border-bottom:1px solid var(--line); }
+  th { color:#637389; background:#f8fafc; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; }
+  td { color:#35465b; background:#fff; }
+  tr:last-child td { border-bottom:0; }
+  tr:hover td { background:#fbfdff; }
+  .tag { padding:3px 8px; color:#486078; background:#eef3f7; border-radius:999px; }
+  .tag.yes { color:var(--good); background:var(--good-soft); }
+  .tag.no { color:var(--bad); background:#fff1f2; }
+  #dash.ready { gap:20px; padding:20px 22px 22px; grid-template-columns:228px minmax(0,1fr); }
+  #dash > .menu { padding:18px 11px 14px; background:var(--nav); border:1px solid #183149; border-radius:12px; box-shadow:0 9px 24px rgba(17,35,56,.14); }
+  #dash > .menu .menuTitle { padding:4px 13px 20px; color:#f7fbff; font-size:15px; font-weight:750; letter-spacing:.01em; }
+  #dash > .menu .menuTitle::after { content:"控制台"; display:block; margin-top:4px; color:#88a1bb; font-size:11px; font-weight:500; }
+  #dash > .menu::before { content:"工作台"; margin:0 13px 5px; color:#6f8aa6; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+  #dash > .menu button { min-height:40px; padding:9px 13px; color:#b3c5d8; border-radius:7px; font-size:13px; text-align:left; }
+  #dash > .menu button::before { width:6px; height:6px; margin-right:11px; background:#7491ac; border-radius:2px; }
+  #dash > .menu button.active, #dash > .menu button:hover { color:#fff; background:var(--nav-soft); border-color:#2d5f89; }
+  #dash > .menu button.active::before, #dash > .menu button:hover::before { background:#7db7ef; }
+  #dash > .menu button[data-section="logs"] { margin-top:14px; }
+  #dash > .menu button[data-section="logs"]::after { content:"运维"; position:absolute; left:24px; transform:translateY(-28px); color:#6f8aa6; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+  #dash > .menu button[data-section="logs"] { position:relative; }
+  #dash > .menu button[data-section="logs"]::after { top:-13px; }
+  #dash > .menu button[data-section="account"] { margin-top:14px; }
+  #dash > .menu::after { content:"单节点模式 · 数据本地保存"; margin: auto 12px 1px; padding-top:16px; color:#7891aa; border-top:1px solid #29425b; font-size:10px; line-height:1.5; }
+  #dash > .card, #dash > details { padding:30px 34px 38px; border-radius:12px; box-shadow:0 5px 20px rgba(31,52,76,.055); }
+  #dash > details { padding:0; border:0; box-shadow:none; }
+  #dash > details > summary { padding:18px 22px; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 5px 20px rgba(31,52,76,.055); }
+  #dash > details[open] > summary { border-radius:10px 10px 0 0; }
+  #dash > details > .card { border-top:0; border-radius:0; box-shadow:none; }
+  #dash > details > .card:last-child { border-radius:0 0 10px 10px; }
+  #overviewCard { padding:0 !important; overflow:auto; }
+  #overviewCard > .welcomePanel { margin:0; padding:30px 34px; border-radius:12px 12px 0 0; background:#132b43; box-shadow:none; }
+  .welcomePanel h2 { font-size:22px; letter-spacing:-.02em; }
+  .welcomePanel p { color:#b7c9da; }
+  .overviewStats { gap:10px; margin-top:24px; }
+  .overviewStat { padding:14px 15px; color:#b6c8da; background:#1b3b59; border:1px solid #2a5273; border-radius:8px; font-size:11px; }
+  .overviewStat b { margin-top:5px; color:#fff; font-size:21px; }
+  .overviewStat span { display:block; margin-top:3px; color:#8eabc3; font-size:10px; }
+  .overviewActions { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:22px 34px 30px; }
+  .overviewActions strong { display:block; color:var(--ink); font-size:13px; }
+  .overviewActions span { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+  .overviewActions .row { margin:0; }
+  .charts { gap:18px; }
+  .chartPanel { padding:16px; background:#fff; border:1px solid var(--line); border-radius:9px; }
+  .chartPanel h3 { color:#3e5168; font-size:12px; letter-spacing:.02em; }
+  canvas.chart { height:230px; border:0; border-radius:6px; }
+  #trafficKPI { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+  #trafficKPI .kv { padding:13px 14px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; }
+  #trafficKPI .kv b { display:block; margin-bottom:4px; color:#6d7d90; font-size:11px; font-weight:600; }
+  #trafficKPI .kv div > div { color:var(--ink); font-size:18px; font-weight:700; }
+  .loginShell { width:min(1040px,calc(100vw - 48px)); min-height:560px; margin:0 auto; padding:0; display:grid; grid-template-columns:1.02fr .98fr; background:#fff; border:1px solid #dce5ed; border-radius:14px; box-shadow:0 20px 55px rgba(17,35,56,.12); overflow:hidden; }
+  .loginBrand { min-height:560px; padding:58px; display:flex; flex-direction:column; justify-content:center; background:#132b43; border-radius:0; box-shadow:none; }
+  .brandMark { width:46px; height:46px; margin-bottom:30px; color:#132b43; background:#fff; border-radius:10px; font-size:13px; }
+  .loginBrand h2 { margin-bottom:13px; color:#fff; font-size:30px; letter-spacing:-.025em; }
+  .loginBrand p { max-width:350px; color:#bfd0df; line-height:1.8; }
+  .loginFeatures { gap:13px; margin-top:34px; color:#d9e5ee; }
+  .loginFeatures span::before { width:7px; height:7px; top:7px; background:#6ca9df; border-radius:2px; }
+  .loginForm { min-height:560px; padding:72px 68px; display:flex; flex-direction:column; justify-content:center; border:0; border-radius:0; box-shadow:none; }
+  .loginForm h2 { color:var(--ink); font-size:24px; }
+  .loginForm .desc { margin-bottom:30px; color:var(--muted); }
+  .loginForm .row { margin-top:26px; }
+  .loginForm .row button { min-height:44px; }
+  .loginForm::after { content:"盛愈边缘网关 · 安全转发控制台"; margin-top:28px; color:#a0adba; font-size:11px; }
+  @media (max-width:899px) {
+    #dash.ready { grid-template-columns:1fr; display:flex; flex-direction:column; padding:12px; }
+    #dash > .menu { min-height:0; height:auto; flex-direction:row; overflow:auto; }
+    #dash > .menu::before, #dash > .menu::after { display:none; }
+    #dash > .menu .menuTitle { display:none; }
+    #dash > .menu button { width:auto; white-space:nowrap; }
+    #dash > .menu button[data-section="logs"], #dash > .menu button[data-section="account"] { margin-top:0; }
+    #dash > .menu button[data-section="logs"]::after { display:none; }
+    #dash > .card, #dash > details { height:auto; max-height:none; overflow:visible; padding:22px; }
+  }
+  @media (max-width:760px) {
+    header { padding:0 15px; }
+    #hdrRight { display:none; }
+    #wizard { padding:18px 14px 30px; }
+    .loginShell { width:calc(100vw - 28px); min-height:0; margin:18px auto; grid-template-columns:1fr; }
+    .loginBrand { min-height:250px; padding:32px; }
+    .loginBrand h2 { font-size:24px; }
+    .loginFeatures { display:none; }
+    .loginForm { min-height:390px; padding:38px 30px; }
+    #trafficKPI { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+</style>
 </head>
 <body>
 <header>
-  <div>
+  <div class="brandLockup">
     <h1>盛愈边缘网关</h1>
-    <div class="sub">安全管理 · 边缘转发服务</div>
+    <div class="sub">边缘转发控制台 · 单节点</div>
   </div>
   <div class="headerActions"><div class="sub" id="hdrRight"></div><button id="btnLogout" class="ghost" style="display:none">退出登录</button></div>
 </header>
@@ -368,24 +525,24 @@
         <div class="menuTitle">盛愈边缘网关</div>
         <button data-menu-target="overviewCard" data-section="overview" class="active">总览</button>
         <button data-menu-target="businessCard" data-section="rules">转发规则</button>
-        <button data-menu-target="logsCard" data-section="logs">连接日志</button>
         <button data-menu-target="trafficCard" data-section="traffic">流量监控</button>
-        <button data-menu-target="publishCard" data-section="publish">发布与回滚</button>
-        <button data-menu-target="settingsDetails" data-section="settings">节点与设置</button>
-        <button data-menu-target="accountPanel" data-section="account">账号管理</button>
+        <button data-menu-target="logsCard" data-section="logs">连接日志</button>
+        <button data-menu-target="publishCard" data-section="publish">发布记录</button>
+        <button data-menu-target="settingsDetails" data-section="settings">节点与入口</button>
+        <button data-menu-target="accountPanel" data-section="account">账号与安全</button>
       </nav>
 
       <div class="card" id="overviewCard" data-section="overview">
         <div class="welcomePanel">
           <h2>欢迎回来，<span id="welcomeUser">管理员</span></h2>
-          <p>这里是你的边缘转发总览。选择左侧模块查看规则、流量和运行情况。</p>
+          <p>节点运行状态、转发规则和连接质量都集中在这里。</p>
           <div class="overviewStats">
-            <div class="overviewStat">业务规则<b id="overviewBizCount">-</b></div>
-            <div class="overviewStat">当前状态<b id="overviewStatus">-</b></div>
-            <div class="overviewStat">当前版本<b id="overviewVersion">-</b></div>
+            <div class="overviewStat">业务规则<b id="overviewBizCount">-</b><span>正在管理的 SNI 路由</span></div>
+            <div class="overviewStat">当前状态<b id="overviewStatus">-</b><span>管理服务和数据面</span></div>
+            <div class="overviewStat">当前版本<b id="overviewVersion">-</b><span>已发布配置版本</span></div>
           </div>
         </div>
-        <div class="row"><button id="btnOverviewRules">查看转发规则</button><button id="btnOverviewTraffic" class="ghost">查看流量监控</button></div>
+        <div class="overviewActions"><div><strong>常用操作</strong><span>从这里开始处理日常运维</span></div><div class="row"><button id="btnOverviewRules">查看转发规则</button><button id="btnOverviewTraffic" class="ghost">查看流量监控</button></div></div>
       </div>
 
       <details class="advanced" id="settingsDetails" data-section="settings">
@@ -433,9 +590,15 @@
       </div>
 
       <div class="card" id="logsCard" data-section="logs">
-        <h2>日志与诊断</h2>
-        <div class="desc">发布后的连接记录和管理操作记录会显示在这里。连接日志由 HAProxy 会话结束后上报，所以刚建立的连接可能稍后才出现。</div>
-        <div class="row"><button id="btnRefreshLogs">刷新日志</button><button id="btnDiagnose" class="ghost">运行诊断</button></div>
+        <div class="panelHeading"><div><h2>日志与诊断</h2><div class="desc">把 HAProxy 的原始连接记录变成可检索的运行证据，定位“慢在哪里、断在哪里、是否源站问题”。</div></div><div class="panelBadge">最近 1 小时</div></div>
+        <div class="logToolbar">
+          <input id="logSniFilter" placeholder="按域名 / SNI 筛选">
+          <input id="logClientFilter" placeholder="按客户端 IP 筛选">
+          <label class="checkLabel"><input id="logOnlyAnomaly" type="checkbox"> 只看异常</label>
+          <button id="btnApplyLogFilter">筛选日志</button>
+          <button id="btnRefreshLogs" class="ghost">刷新</button>
+          <button id="btnDiagnose" class="ghost">运行诊断</button>
+        </div>
         <div class="msg" id="logsMsg"></div>
         <div id="connLogTable"></div>
         <div id="auditLogTable"></div>
@@ -491,8 +654,7 @@
       </div>
 
       <div class="card" id="publishCard" data-section="publish">
-        <h2>发布</h2>
-        <div class="desc">配置改动需发布后才生效。任一阶段失败都会自动回滚。</div>
+        <div class="panelHeading"><div><h2>发布与回滚</h2><div class="desc">每次配置变更都会生成版本记录。失败时保留证据，并按验证结果决定是否回滚。</div></div><div class="panelBadge">原子发布</div></div>
         <ol class="phase" id="dPhaseList"></ol>
         <div class="row">
           <button id="btnPreview" class="sec">预检</button>
@@ -501,6 +663,7 @@
         </div>
         <div class="msg" id="dPubMsg"></div>
         <div id="dFailBox"></div>
+        <div id="releaseHistory" class="releaseHistory"></div>
       </div>
     </div>
   </div>
@@ -726,11 +889,24 @@ $("btnCreateUser").onclick = async () => {
 function logValue(row, name) { return row[name] == null ? "-" : row[name]; }
 
 async function loadLogs() {
-  const res = await api("GET", "/api/logs/conn?limit=50");
+  const params = new URLSearchParams({limit:"50"});
+  const sni = ($("logSniFilter") && $("logSniFilter").value || "").trim();
+  const client = ($("logClientFilter") && $("logClientFilter").value || "").trim();
+  if (sni) params.set("sni", sni);
+  if (client) params.set("client_ip", client);
+  if ($("logOnlyAnomaly") && $("logOnlyAnomaly").checked) params.set("only_anomaly", "1");
+  const res = await api("GET", "/api/logs/conn?" + params.toString());
   if (res.status !== 200) { show("logsMsg", errText(res, "读取连接日志失败"), "err"); return; }
   const rows = (res.data && res.data.items) || [];
-  let h = "<h3 style='font-size:14px;margin:16px 0 4px'>连接日志（最近 50 条）</h3><table><tr><th>结束时间</th><th>入口</th><th>SNI</th><th>客户端</th><th>源站</th><th>结果</th><th>流量</th></tr>";
-  for (const row of rows) h += "<tr><td>" + esc(logValue(row, "end_ts")) + "</td><td>" + esc(logValue(row, "entry_addr")) + ":" + esc(logValue(row, "entry_port")) + "</td><td>" + esc(logValue(row, "sni")) + "</td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port")) + "</td><td>" + esc(logValue(row, "term_code")) + " " + esc(logValue(row, "term_reason")) + "</td><td>↑" + esc(logValue(row, "bytes_up")) + " / ↓" + esc(logValue(row, "bytes_down")) + "</td></tr>";
+  let h = "<div class='tableHeading'><div><strong>连接记录</strong><span>最近 50 条 · 日志在连接结束后写入</span></div><b>" + rows.length + " 条</b></div><table><tr><th>时间</th><th>入口 / SNI</th><th>客户端</th><th>源站</th><th>耗时</th><th>结果</th><th>流量</th></tr>";
+  for (const row of rows) {
+    const term = logValue(row, "term_code");
+    const healthy = term === "--" || term === "-";
+    const entry = esc(logValue(row, "entry_addr")) + ":" + esc(logValue(row, "entry_port"));
+    const sni = esc(logValue(row, "sni"));
+    const timing = logValue(row, "session_ms") === "-" ? "-" : esc(logValue(row, "session_ms")) + " ms";
+    h += "<tr><td><b>" + esc(logValue(row, "end_ts")) + "</b></td><td><span class='tablePrimary'>" + entry + "</span><span class='tableSecondary'>" + sni + "</span></td><td>" + esc(logValue(row, "client_ip")) + "</td><td>" + esc(logValue(row, "origin_addr")) + ":" + esc(logValue(row, "origin_port")) + "</td><td>" + timing + "</td><td><span class='tag " + (healthy ? "yes" : "no") + "'>" + esc(term) + "</span></td><td>↑" + esc(logValue(row, "bytes_up")) + " / ↓" + esc(logValue(row, "bytes_down")) + "</td></tr>";
+  }
   $("connLogTable").innerHTML = h + "</table>" + (rows.length ? "" : "<div class='hint'>暂无连接记录，连接结束并上报后会出现在这里。</div>");
   const audit = await api("GET", "/api/audit?limit=30");
   const ar = (audit.data && audit.data.items) || [];
@@ -815,6 +991,7 @@ async function loadTraffic(forceHistory) {
 }
 
 $("btnRefreshLogs").onclick = loadLogs;
+$("btnApplyLogFilter").onclick = loadLogs;
 $("btnRefreshTraffic").onclick = () => loadTraffic(true);
 $("btnLogout").onclick = async () => {
   await api("POST", "/api/logout");
@@ -1153,7 +1330,24 @@ async function deleteBiz(id) {
   await loadBiz();
 }
 
-async function refreshDash() { await loadSNI(); await loadBiz(); renderPhases("dPhaseList", null, null); }
+async function refreshDash() { await loadSNI(); await loadBiz(); renderPhases("dPhaseList", null, null); await loadReleases(); }
+
+async function loadReleases() {
+  if (!nodeId || !$("releaseHistory")) return;
+  const res = await api("GET", "/api/nodes/" + nodeId + "/releases?limit=8");
+  if (res.status !== 200) { $("releaseHistory").innerHTML = ""; return; }
+  const rows = (res.data && res.data.items) || [];
+  let h = "<div class='releaseHistoryTitle'><span>最近发布记录</span><span class='hint'>保留每次变更的实际结果</span></div>";
+  if (!rows.length) { $("releaseHistory").innerHTML = h + "<div class='hint'>还没有发布记录。</div>"; return; }
+  for (const row of rows) {
+    const status = String(row.status || "");
+    const good = status === "succeeded" || status === "applied_origin_unhealthy" || status === "rolled_back";
+    const action = row.action === "rollback" ? "回滚" : row.action === "repair" ? "修复" : "发布";
+    const detail = row.result || row.detail || row.phase || "-";
+    h += "<div class='releaseItem'><div><strong>" + action + "</strong><small>" + esc(row.actor || "系统") + "</small></div><div><span class='tag " + (good ? "yes" : status === "failed" ? "no" : "") + "'>" + esc(status || "进行中") + "</span></div><div class='releaseResult'>v" + esc(row.from_version) + " → v" + esc(row.to_version) + "<small>" + esc(detail) + "</small></div><div>" + esc(row.finished_at || row.started_at || "-") + "</div></div>";
+  }
+  $("releaseHistory").innerHTML = h;
+}
 
 // ---------------- 步骤 4：检查 ----------------
 function renderReview() {
@@ -1358,6 +1552,7 @@ async function doPublish(msgId, listId, boxId) {
   const m = await api("GET", "/api/meta");
   if (m.status === 200 && m.data) meta = m.data;
   await loadSNI(); await loadBiz();
+  await loadReleases();
 }
 
 $("btnPublish").onclick = () => doPublish("pubMsg", "phaseList", "failBox");
